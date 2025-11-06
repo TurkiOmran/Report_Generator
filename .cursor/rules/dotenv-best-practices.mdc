@@ -1,0 +1,12 @@
+---
+name: dotenv-best-practices.mdc
+description: Best practices for environment variable management with python-dotenv
+globs: **/*.py
+---
+
+- Store sensitive information in .env file and add it to .gitignore
+- Use descriptive variable names for clarity
+- Load environment variables at the start of your application
+- Validate required environment variables during startup
+- Use default values for optional environment variables
+- Never overwrite .env file without explicit permission

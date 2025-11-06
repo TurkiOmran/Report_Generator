@@ -1,0 +1,12 @@
+---
+name: pytest-best-practices.mdc
+description: Best practices for testing with pytest
+globs: **/*_test.py, **/test_*.py
+---
+
+- Use fixtures for setup and teardown of test environments
+- Write clear and descriptive test names
+- Group related tests in classes or modules
+- Use parameterized tests to cover multiple scenarios
+- Ensure tests are independent and can run in any order
+- Test with real CSV data samples, not mocked data

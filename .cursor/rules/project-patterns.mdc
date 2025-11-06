@@ -1,0 +1,29 @@
+---
+name: project-patterns.mdc
+description: Coding pattern preferences for Power Profile Report Generator
+globs: **/*.py
+---
+
+# Coding Pattern Preferences
+
+- Always prefer simple solutions
+- Avoid duplication of code whenever possible - check for similar code/functionality before writing new code
+- You are careful to only make changes that are requested or well understood and related to the change
+- When fixing bugs, exhaust all options with existing implementation before introducing new patterns
+- If new patterns are introduced, remove old implementation to avoid duplicate logic
+- Keep the codebase very clean and organized
+- Avoid having files over 200-300 lines of code - refactor at that point
+- Mocking data is only for tests, never mock data for dev or prod
+- Never add stubbing or fake data patterns to prod code
+- Never overwrite .env file without asking and confirming first
+
+# Project-Specific Rules
+
+- Keep metrics deterministic - never use LLM for calculations
+- All metric functions must return dictionaries with consistent keys
+- Separate data processing (pandas) from metric calculation (pure Python)
+- Use R_Test_Metrics_Complete_Pseudocode_v3.md as reference for metric implementations
+- Metric functions must handle NaN values gracefully
+- Test each metric with real CSV samples
+- Follow metric dependency order from PRD
+- Document all adaptive thresholds (e.g., Band Entry formula)

@@ -1,0 +1,11 @@
+---
+name: pydantic-best-practices.mdc
+description: Best practices for data validation with Pydantic
+globs: **/*.py
+---
+
+- Define models with clear field types and constraints
+- Use validators for custom validation logic
+- Leverage BaseModel for automatic data parsing and validation
+- Keep models simple and focused on a single purpose
+- Use Config class for model configuration options

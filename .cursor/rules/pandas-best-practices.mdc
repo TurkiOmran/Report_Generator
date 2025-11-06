@@ -1,0 +1,11 @@
+---
+name: pandas-best-practices.mdc
+description: Best practices for data manipulation with pandas
+globs: **/*.py
+---
+
+- Use vectorized operations instead of loops for performance
+- Handle missing data with appropriate methods (e.g., fillna, dropna)
+- Use DataFrame and Series methods for efficient data manipulation
+- Chain methods for cleaner and more readable code
+- Validate data types and structures before processing

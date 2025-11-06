@@ -1,0 +1,223 @@
+---
+description: Best practices for GitHub workflow and version control
+alwaysApply: true
+---
+
+# GitHub & Git Best Practices
+
+**Note:** This is primarily reference material for commits and workflow. Use it when planning commits, but don't worry about memorizing all commands.
+
+## Commit Message Format
+
+- **Use Conventional Commits**: `type(scope): description`
+- **Types**:
+  - `feat`: New feature implementation
+  - `fix`: Bug fix
+  - `docs`: Documentation changes
+  - `style`: Code style changes (formatting, no logic change)
+  - `refactor`: Code refactoring without behavior change
+  - `test`: Adding or updating tests
+  - `chore`: Maintenance tasks (dependencies, config)
+  - `perf`: Performance improvements
+
+- **Examples**:
+  ```bash
+  feat(metrics): implement start power calculation
+  test(preprocessing): add validation tests for CSV ingestion
+  docs(readme): update installation instructions
+  fix(metrics): handle NaN values in band entry calculation
+  refactor(metrics): extract common validation logic
+  chore(deps): update pandas to 2.2.0
+  ```
+
+- **Reference Taskmaster tasks**: Include task ID in commit body
+  ```bash
+  feat(metrics): implement band entry metric
+  
+  Implements Metric 5 from PRD with ±5% band detection
+  and consecutive sample validation.
+  
+  Resolves task 6
+  ```
+
+## Commit Frequency & Quality
+
+- **Commit after completing each subtask**
+- Commit when test passes
+- Commit before switching tasks
+- Never commit broken code to main branch
+- Keep commits atomic and focused on one thing
+- Write clear commit messages that explain WHY, not just WHAT
+
+## Branch Strategy
+
+### For Solo Development (Current)
+- `main` branch for stable, working code
+- Feature branches for each major task: `feature/task-{id}-{short-name}`
+- Examples:
+  - `feature/task-1-project-setup`
+  - `feature/task-3-preprocessing`
+  - `feature/task-4-basic-metrics`
+- Merge to main when task is complete and tested
+- **Branch cleanup is optional for solo work:**
+  - Keep branches for reference, OR
+  - Delete after merge: `git branch -d feature/task-{id}-{name}`
+  - Force delete if unmerged: `git branch -D feature/task-{id}-{name}`
+
+### Workflow Per Task
+```bash
+# Start new task
+git checkout main
+git pull origin main
+git checkout -b feature/task-{id}-{name}
+task-master set-status --id={id} --status=in-progress
+
+# Work and commit regularly
+git add <files>
+git commit -m "feat(scope): description"
+
+# Complete task
+task-master set-status --id={id} --status=done
+git checkout main
+git merge feature/task-{id}-{name}
+git push origin main
+
+# Optional: Clean up branch (see Branch Strategy section)
+```
+
+### For Team Collaboration (Future)
+- Create pull requests instead of direct merges
+- Require code review before merging
+- Use GitHub Actions for CI/CD
+- Protect main branch from direct pushes
+
+## What to Commit
+
+### ✅ Always Commit
+- Source code (`src/`)
+- Tests (`tests/`)
+- Configuration (`.env.example`, `requirements.txt`)
+- Documentation (`README.md`, `docs/`)
+- Pseudocode reference (`R_Test_Metrics_Complete_Pseudocode_v3.md`)
+- Sample CSV test data (small files only, <1MB)
+- Taskmaster files (`.taskmaster/`)
+- Cursor rules (`.cursor/rules/`)
+- Git ignore (`.gitignore`)
+- Project metadata (`pyproject.toml`, `setup.py`)
+
+### ❌ Never Commit
+- `.env` file (contains API keys and secrets)
+- Virtual environment (`venv/`, `env/`)
+- `__pycache__/` directories
+- `.pytest_cache/`
+- `.coverage` files
+- `htmlcov/` directory
+- IDE settings (`.vscode/`, `.idea/`) unless shared team settings
+- Compiled Python files (`.pyc`, `.pyo`, `.pyd`)
+- OS files (`.DS_Store`, `Thumbs.db`)
+- Large data files (use `.gitignore` or Git LFS)
+
+## Integration with Taskmaster
+
+- **Reference task IDs**: `feat(metrics): implement band entry (task 6)`
+- **Commit when completing subtasks**: Use `update-subtask` to log implementation notes, then commit
+- **Update task status after successful commit**: Mark task as done after code is safely committed
+- **Branch naming matches tasks**: Easy to track which branch belongs to which task
+
+## GitHub Repository Setup
+
+### Initial Setup
+```bash
+# After first commit
+git remote add origin https://github.com/yourusername/miner-power-report-generator.git
+git branch -M main
+git push -u origin main
+```
+
+### Repository Configuration
+- Add comprehensive README with:
+  - Project description
+  - Installation instructions
+  - Usage examples
+  - Contributing guidelines
+- Add `.env.example` with placeholder values
+- Create GitHub repository description
+- Add topics/tags for discoverability
+- Consider adding a LICENSE file
+
+## Merge Conflict Prevention
+
+- Pull from main before starting new feature branch
+- Keep feature branches short-lived (1-2 days max)
+- Merge main into feature branch if it diverges
+- Communicate with team about file changes
+- Use `.taskmaster/` tag system for parallel work
+
+## Protection Rules (Future Team Growth)
+
+- Require pull requests for main branch
+- Require at least 1 approval before merge
+- Require status checks to pass (tests, linting)
+- Prevent force pushes to main
+- Require linear history (rebase or squash merge)
+
+## Git Hygiene
+
+- **Pull before push**: `git pull origin main` before `git push`
+- **Review before commit**: Use `git diff` to review changes
+- **Stash work-in-progress**: `git stash` when switching branches
+- **Clean up branches**: Delete merged feature branches
+- **Use `.gitignore`**: Keep repository clean
+
+## Common Commands Reference
+
+```bash
+# View status
+git status
+
+# View changes
+git diff
+
+# Stage specific files
+git add src/metrics/basic_metrics.py tests/test_metrics/test_basic.py
+
+# Stage all changes (use carefully)
+git add .
+
+# Commit with message
+git commit -m "feat(metrics): implement start power calculation"
+
+# Push to remote
+git push origin main
+
+# Create and switch to new branch
+git checkout -b feature/task-2-preprocessing
+
+# Switch branches
+git checkout main
+
+# Merge branch
+git merge feature/task-1-project-setup
+
+# View commit history
+git log --oneline --graph
+
+# Undo last commit (keep changes)
+git reset --soft HEAD~1
+
+# Discard local changes (careful!)
+git restore <file>
+```
+
+## Best Practices Summary
+
+1. ✅ Commit early, commit often
+2. ✅ Write meaningful commit messages
+3. ✅ Keep commits atomic and focused
+4. ✅ Reference Taskmaster task IDs
+5. ✅ Use feature branches
+6. ✅ Test before committing to main
+7. ✅ Pull before push
+8. ✅ Never commit secrets or credentials
+9. ✅ Use `.gitignore` properly
+10. ✅ Keep main branch stable and deployable

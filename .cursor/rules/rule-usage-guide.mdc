@@ -1,0 +1,154 @@
+---
+description: Guide for AI agent on how to discover, select, and apply project rules effectively
+globs: **/*
+alwaysApply: true
+---
+
+# Rule Usage Guide for AI Agent
+
+## Rule Discovery Process
+
+When starting any task, the AI should:
+1. Identify the file type being worked on (e.g., .py, .mdc)
+2. Check which rules have matching globs for that file type
+3. Review rule descriptions to understand their purpose
+4. Load relevant rules based on task context
+
+## Rule Types and When They Apply
+
+### Always Applied (alwaysApply: true)
+These rules are ALWAYS in context:
+- cursor_rules.mdc - Rule formatting standards
+- self_improve.mdc - Pattern recognition for rule updates
+- dev_workflow.mdc - Taskmaster workflow
+- taskmaster.mdc - Command reference
+- project-patterns.mdc - Core project patterns
+
+**Usage:** Reference these throughout every interaction
+
+### Auto-Attached (glob-matched)
+These rules load when working on matching files:
+- python-best-practices.mdc - Any .py file
+- pandas-best-practices.mdc - Data processing in .py
+- pytest-best-practices.mdc - Test files (test_*.py, *_test.py)
+- plotly-best-practices.mdc - Visualization code
+- pydantic-best-practices.mdc - Data validation models
+- dotenv-best-practices.mdc - Environment config
+- anthropic-best-practices.mdc - LLM integration code
+
+**Usage:** Automatically available when editing matching files
+
+## Rule Priority When Conflicts Arise
+
+If rules conflict, follow this priority order:
+1. **project-patterns.mdc** (project-specific overrides everything)
+2. **Library-specific rules** (pandas, pytest, etc.)
+3. **python-best-practices.mdc** (general Python standards)
+
+**Example Conflict:**
+- project-patterns says "metrics must return dicts"
+- pydantic suggests "use BaseModel for structured returns"
+- **Winner:** project-patterns (metrics return dicts, not pydantic models)
+
+## When to Request Additional Rules
+
+The agent should actively request rules when:
+- Starting implementation of a new metric
+- Working with unfamiliar library patterns
+- Uncertain about project conventions
+- User mentions specific requirements
+
+**How to request:**
+- Review available rule descriptions
+- Load rules matching the current task
+- Cross-reference multiple rules if needed
+
+## Context-Specific Rule Application
+
+### Working on Metrics (src/metrics/*.py)
+**Primary rules:**
+1. project-patterns.mdc - Deterministic requirement, dict returns
+2. pandas-best-practices.mdc - Data manipulation
+3. python-best-practices.mdc - Code quality
+
+**Key principles from rules:**
+- Keep metrics deterministic (never use LLM)
+- Handle NaN values gracefully
+- Return consistent dictionary structure
+- Follow pseudocode reference (R_Test_Metrics_Complete_Pseudocode_v3.md)
+
+### Working on Tests (tests/*.py)
+**Primary rules:**
+1. pytest-best-practices.mdc - Test structure
+2. project-patterns.mdc - Use real CSV data, no mocks for prod
+3. python-best-practices.mdc - Code quality
+
+### Working on LLM Integration (src/analysis/*.py)
+**Primary rules:**
+1. anthropic-best-practices.mdc - API usage
+2. dotenv-best-practices.mdc - Key management
+3. project-patterns.mdc - Never calculate metrics with LLM
+
+### Working on Data Processing (src/data_processing/*.py)
+**Primary rules:**
+1. pandas-best-practices.mdc - Vectorized ops, NaN handling
+2. pydantic-best-practices.mdc - Validation models
+3. python-best-practices.mdc - Code quality
+
+## Rule Maintenance Triggers
+
+The agent should suggest rule updates when:
+- New patterns emerge across 3+ files
+- User corrects the same mistake multiple times
+- Implementation deviates from documented patterns
+- New libraries/tools are consistently used
+
+**Process:**
+1. Recognize the pattern
+2. Reference self_improve.mdc for update criteria
+3. Follow cursor_rules.mdc for proper formatting
+4. Suggest the update to user (never auto-update)
+
+## Best Practices for Rule Usage
+
+**DO:**
+- Load all relevant rules before starting implementation
+- Cross-reference rules when working across modules
+- Cite which rule guided a specific decision
+- Suggest rule updates when patterns emerge
+
+**DON'T:**
+- Override project-patterns.mdc with generic advice
+- Apply mocking patterns from pytest to prod code
+- Use LLM for calculations (violates project-patterns)
+- Edit rules directly (suggest changes to user)
+
+## Quick Reference: Common Scenarios
+
+**"Implement Metric 5 (Band Entry)"**
+→ Load: project-patterns + pandas + python-best-practices
+→ Reference: R_Test_Metrics_Complete_Pseudocode_v3.md
+→ Key rules: deterministic, dict return, NaN handling
+
+**"Write tests for preprocessing module"**
+→ Load: pytest + project-patterns + python-best-practices
+→ Key rules: real CSV data, no mocks, independent tests
+
+**"Create LLM prompt for analysis"**
+→ Load: anthropic + dotenv + project-patterns
+→ Key rules: pass pre-computed metrics, no recalculation
+
+**"Fix .env configuration"**
+→ Load: dotenv + project-patterns
+→ Key rules: never overwrite without permission, validate keys
+
+## Integration with Taskmaster Workflow
+
+When using Taskmaster commands:
+1. Check current task with `task-master show <id>`
+2. Load rules matching task requirements
+3. Implement following loaded rules
+4. Log findings with `update-subtask`
+5. Update rules if new patterns emerge (via self_improve.mdc)
+
+**Remember:** Rules guide implementation, Taskmaster guides workflow. Use both together for optimal results.

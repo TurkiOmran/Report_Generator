@@ -1,0 +1,13 @@
+---
+name: anthropic-best-practices.mdc
+description: Best practices for Claude API integration
+globs: **/*.py
+---
+
+- Use environment-based API key management (never hardcode keys)
+- Implement error handling and retry logic for API calls
+- Validate responses before using them
+- Optimize token usage by providing only necessary context
+- Handle timeouts gracefully
+- Never use LLM for deterministic calculations - only for narrative analysis
+- Pass pre-computed metrics to LLM, never ask it to calculate metrics

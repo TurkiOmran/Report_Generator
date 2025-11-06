@@ -1,0 +1,11 @@
+---
+name: plotly-best-practices.mdc
+description: Best practices for data visualization with Plotly
+globs: **/*.py
+---
+
+- Use clear and descriptive titles and labels for charts
+- Keep visualizations simple and avoid clutter
+- Use appropriate chart types for the data being presented
+- Ensure interactivity is intuitive and enhances user experience
+- Validate data before plotting to avoid errors

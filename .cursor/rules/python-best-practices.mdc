@@ -1,0 +1,12 @@
+---
+name: python-best-practices.mdc
+description: Best practices for Python development
+globs: **/*.py
+---
+
+- Follow PEP 8 style guide for consistent code formatting
+- Use type hints for better readability and type safety
+- Write docstrings for all functions and classes
+- Implement error handling using exceptions
+- Keep functions small and focused on a single task
+- Use virtual environments to manage dependencies
