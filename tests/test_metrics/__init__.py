@@ -1,2 +1,3 @@
-"""Tests for metrics module"""
-
+"""
+Tests for metrics module
+"""
