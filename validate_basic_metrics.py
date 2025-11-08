@@ -111,7 +111,51 @@ def validate_metrics_on_file(filepath: Path):
         else:
             print(f"  ⚠️  Significant difference (>{5:.0f}%)")
         
-        print(f"\n✅ All metrics calculated successfully for {filepath.name}\n")
+        # METRIC 3: Step Direction
+        print(f"\n{'─'*80}")
+        print("METRIC 3: Step Direction")
+        print(f"{'─'*80}")
+        
+        step_direction = metrics.calculate_step_direction(start_power, target_power)
+        
+        print(f"  Direction:        {step_direction['direction']}")
+        print(f"  Delta:            {step_direction['delta']:+.2f}W")
+        print(f"  Description:      {step_direction['description']}")
+        
+        # Validate consistency with target power
+        if abs(step_direction['delta'] - target_power['change']) < 10:
+            print(f"  ✅ Delta matches target power change ({target_power['change']:+.2f}W)")
+        else:
+            print(f"  ⚠️  Delta differs from target change ({target_power['change']:+.2f}W)")
+        
+        # METRIC 4: Temperature Ranges
+        print(f"\n{'─'*80}")
+        print("METRIC 4: Temperature Ranges")
+        print(f"{'─'*80}")
+        
+        temp_ranges = metrics.calculate_temperature_ranges()
+        
+        print(f"\n  PSU Temperature:")
+        if temp_ranges['psu']['min'] is not None:
+            print(f"    Min:            {temp_ranges['psu']['min']:.1f}°C")
+            print(f"    Max:            {temp_ranges['psu']['max']:.1f}°C")
+            print(f"    Range:          {temp_ranges['psu']['range']:.1f}°C")
+        else:
+            print(f"    ⚠️  No valid PSU temperature data")
+        
+        print(f"\n  Hash Board Temperature:")
+        if temp_ranges['board']['min'] is not None:
+            print(f"    Min:            {temp_ranges['board']['min']:.1f}°C")
+            print(f"    Max:            {temp_ranges['board']['max']:.1f}°C")
+            print(f"    Range:          {temp_ranges['board']['range']:.1f}°C")
+        else:
+            print(f"    ⚠️  No valid hash board temperature data")
+        
+        # Validate ranges
+        if temp_ranges['psu']['range'] is not None and temp_ranges['board']['range'] is not None:
+            print(f"\n  ✅ All temperature ranges calculated successfully")
+        
+        print(f"\n✅ All 4 metrics calculated successfully for {filepath.name}\n")
         return True
         
     except Exception as e:
@@ -161,7 +205,7 @@ def main():
     
     if passed == total:
         print("\n🎉 All files validated successfully!")
-        print("   METRIC 1 (Start Power) and METRIC 2 (Target Power) are working correctly!")
+        print("   All 4 metrics (Start Power, Target Power, Step Direction, Temperature Ranges) are working correctly!")
     else:
         print(f"\n⚠️  {total - passed} file(s) failed validation")
 

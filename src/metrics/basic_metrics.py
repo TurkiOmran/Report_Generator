@@ -153,3 +153,125 @@ class BasicMetrics:
             'after': float(target_after),
             'change': float(change)
         }
+    
+    def calculate_step_direction(self, start_power: Dict[str, Any], target_power: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        METRIC 3: Step Direction
+        
+        Classify the type of power transition being tested based on the
+        difference between target after action and start power median.
+        
+        Implementation follows pseudocode from:
+        R_Test_Metrics_Complete_Pseudocode_v3.md - Lines 264-336
+        
+        Args:
+            start_power: Dictionary from METRIC 1
+            target_power: Dictionary from METRIC 2
+        
+        Returns:
+            Dictionary containing:
+            - direction: string, "UP-STEP", "DOWN-STEP", or "MINIMAL-STEP"
+            - delta: float, signed change in watts
+            - description: string, human-readable description
+        
+        Raises:
+            ValueError: If start or target values are missing
+        """
+        # Step 1: Extract relevant values
+        start_median = start_power['median']
+        target_after = target_power['after']
+        
+        if start_median is None or target_after is None:
+            raise ValueError("Cannot compute step direction - missing start or target power")
+        
+        # Step 2: Calculate delta
+        delta = target_after - start_median
+        
+        # Step 3: Classify direction
+        threshold_minimal = 50  # watts
+        
+        if delta > threshold_minimal:
+            direction = "UP-STEP"
+            description = f"Ramping up {delta:.0f}W"
+        elif delta < -threshold_minimal:
+            direction = "DOWN-STEP"
+            description = f"Ramping down {abs(delta):.0f}W"
+        else:  # -50 <= delta <= 50
+            direction = "MINIMAL-STEP"
+            description = f"Minimal change ({delta:+.0f}W)"
+            logger.warning("Step change is very small, test may not be meaningful")
+        
+        # Log info for very large deltas
+        if abs(delta) > 2000:
+            logger.info(f"Very large power step detected: {delta:.0f}W")
+        
+        return {
+            'direction': direction,
+            'delta': float(delta),
+            'description': description
+        }
+    
+    def calculate_temperature_ranges(self) -> Dict[str, Any]:
+        """
+        METRIC 4: Temperature Ranges
+        
+        Track thermal behavior throughout the test by recording temperature
+        extremes for both PSU and hash board sensors.
+        
+        Implementation follows pseudocode from:
+        R_Test_Metrics_Complete_Pseudocode_v3.md - Lines 339-435
+        
+        Returns:
+            Dictionary containing:
+            - psu: dict with min, max, range (or None if no data)
+            - board: dict with min, max, range (or None if no data)
+        """
+        # Step 1: Extract PSU temperatures
+        psu_temps = self.df['psu_temp_max']
+        valid_psu = psu_temps.dropna()
+        
+        if valid_psu.empty:
+            psu_min = None
+            psu_max = None
+            psu_range = None
+            logger.warning("All PSU temperature values are NaN")
+        else:
+            psu_min = float(valid_psu.min())
+            psu_max = float(valid_psu.max())
+            psu_range = float(psu_max - psu_min)
+        
+        # Step 2: Extract hash board temperatures
+        board_temps = self.df['temp_hash_board_max']
+        valid_board = board_temps.dropna()
+        
+        if valid_board.empty:
+            board_min = None
+            board_max = None
+            board_range = None
+            logger.warning("All hash board temperature values are NaN")
+        else:
+            board_min = float(valid_board.min())
+            board_max = float(valid_board.max())
+            board_range = float(board_max - board_min)
+        
+        # Step 3: Validate temperature ranges
+        for temp_name, temp_value in [
+            ('PSU min', psu_min), ('PSU max', psu_max),
+            ('Board min', board_min), ('Board max', board_max)
+        ]:
+            if temp_value is not None:
+                if temp_value < 0 or temp_value > 100:
+                    logger.warning(f"Temperature {temp_value}°C ({temp_name}) outside typical range")
+        
+        return {
+            'psu': {
+                'min': psu_min,
+                'max': psu_max,
+                'range': psu_range
+            },
+            'board': {
+                'min': board_min,
+                'max': board_max,
+                'range': board_range
+            }
+        }
