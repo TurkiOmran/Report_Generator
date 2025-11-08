@@ -78,8 +78,51 @@
         "dependencies": [
           "1"
         ],
-        "status": "pending",
-        "subtasks": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement CSV loading with pandas and column validation",
+            "description": "Complete the CSV loading functionality in DataIngestion class with robust column validation and proper error handling for missing required columns.",
+            "dependencies": [],
+            "details": "Enhance the existing load_csv method in src/data_processing/ingestion.py to properly validate all required columns (miner.seconds, miner.mode.power, etc.), implement comprehensive error messages for missing columns, and add logging for successful/failed loads. The _validate_columns method should provide clear feedback about which specific columns are missing.",
+            "status": "done",
+            "testStrategy": "Create unit tests that verify successful loading of valid CSV files, proper error handling for files with missing required columns, and correct validation messages. Test with various CSV file formats and edge cases."
+          },
+          {
+            "id": 2,
+            "title": "Create Pydantic data validation models with proper type checking",
+            "description": "Complete the MinerDataSchema Pydantic model with comprehensive validators for all data fields and proper type checking for pandas Series data.",
+            "dependencies": [
+              1
+            ],
+            "details": "Finish implementing the MinerDataSchema in src/data_processing/validation.py by adding validators for all fields (mode_power, summary_wattage, temp_hash_board_max, psu_temp_max, outage). Each validator should check data types, handle null values appropriately, and provide meaningful error messages. Add validation for numeric ranges and boolean conversion for outage field.",
+            "status": "done",
+            "testStrategy": "Create tests that verify each validator works correctly with valid data, rejects invalid data types, handles null values appropriately, and provides clear error messages for validation failures."
+          },
+          {
+            "id": 3,
+            "title": "Build robust error handling for malformed data and missing columns",
+            "description": "Implement comprehensive error handling throughout the data ingestion pipeline to gracefully handle malformed CSV files, corrupted data, and various edge cases.",
+            "dependencies": [
+              2
+            ],
+            "details": "Add try-catch blocks around critical operations in both ingestion.py and validation.py. Implement custom exception classes for different error types (MissingColumnsError, DataValidationError, FileFormatError). Add detailed logging with appropriate log levels (ERROR, WARNING, INFO) and ensure all exceptions provide actionable error messages to users.",
+            "status": "done",
+            "testStrategy": "Test error handling with intentionally malformed CSV files, files with wrong data types, corrupted files, empty files, and files with partial data. Verify that appropriate exceptions are raised and meaningful error messages are provided."
+          },
+          {
+            "id": 4,
+            "title": "Implement data type conversion and standardization with comprehensive logging",
+            "description": "Complete the data type conversion pipeline with robust handling of edge cases and comprehensive logging throughout the ingestion process.",
+            "dependencies": [
+              3
+            ],
+            "details": "Enhance the _convert_types method in DataIngestion to handle edge cases like infinity values, out-of-range numbers, and mixed data types. Add comprehensive logging at each stage of the ingestion process (file loading, column validation, type conversion, standardization). Implement data quality checks and provide summary statistics in logs about successful conversions and any data issues encountered.",
+            "status": "done",
+            "testStrategy": "Test type conversion with various edge cases including infinity values, very large numbers, mixed data types, and special string values. Verify that logging provides adequate information for debugging and monitoring data quality throughout the ingestion process."
+          }
+        ],
         "complexity": 5,
         "recommendedSubtasks": 4,
         "expansionPrompt": "Break down into: 1) Implement CSV loading with pandas and column validation, 2) Create Pydantic data validation models with proper type checking, 3) Build robust error handling for malformed data and missing columns, 4) Implement data type conversion and standardization with comprehensive logging"
@@ -521,7 +564,7 @@
       ],
       "created": "2025-11-08T11:52:16.561Z",
       "description": "Tasks for master context",
-      "updated": "2025-11-08T11:56:37.073Z"
+      "updated": "2025-11-08T12:07:37.501Z"
     }
   }
 }

@@ -1,0 +1,6 @@
+miner.seconds,miner.mode.power,miner.summary.wattage,miner.temp.hash_board_max,miner.psu.temp_max,miner.outage
+-60.0,3600,3550.5,65.2,45.3,false
+-50.0,invalid,3575.2,66.1,46.0,false
+0.0,1000,not_a_number,67.8,47.2,false
+10.0,1000,2850.5,68.0,48.5,false
+
