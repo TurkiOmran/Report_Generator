@@ -9,8 +9,64 @@
         "testStrategy": "Verify project structure by running: `python -c \"import pandas, numpy, plotly, anthropic, pydantic, dotenv, pytest\"` to ensure all dependencies are installed. Create a simple test file that imports from each module directory to verify proper Python package structure.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Project Directory Structure",
+            "description": "Create the complete directory structure with all required folders and subfolders as specified in the project layout.",
+            "dependencies": [],
+            "details": "Create the main project directory structure including src/ with subdirectories (data_processing, metrics, analysis, visualization, reporting), tests/ with test subdirectories, and ensure all directories are properly organized according to the specification.",
+            "status": "done",
+            "testStrategy": "Verify directory structure exists by checking all folders are created correctly and accessible"
+          },
+          {
+            "id": 2,
+            "title": "Initialize Python Module Structure",
+            "description": "Create all required __init__.py files and empty Python module files to establish proper Python package structure.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create __init__.py files in all directories to make them Python packages. Create empty Python files like ingestion.py, validation.py, basic_metrics.py, time_metrics.py, anomaly_metrics.py in their respective directories.",
+            "status": "done",
+            "testStrategy": "Test imports from each module directory to verify proper Python package structure"
+          },
+          {
+            "id": 3,
+            "title": "Create Requirements File with Dependencies",
+            "description": "Create requirements.txt file with exact version specifications for all required Python packages.",
+            "dependencies": [],
+            "details": "Create requirements.txt with specified versions: pandas==2.2.0, numpy==1.26.3, plotly==5.18.0, anthropic, python-dotenv==1.0.0, pydantic==2.5.3, pytest==7.4.4, pytest-cov==4.1.0",
+            "status": "done",
+            "testStrategy": "Validate requirements.txt syntax and package availability"
+          },
+          {
+            "id": 4,
+            "title": "Set Up Virtual Environment",
+            "description": "Create and configure Python virtual environment for the project using Python 3.13 and install all dependencies.",
+            "dependencies": [
+              3
+            ],
+            "details": "Create virtual environment using python3.13 -m venv venv, activate it, and install all packages from requirements.txt using pip install -r requirements.txt",
+            "status": "done",
+            "testStrategy": "Verify all dependencies are installed by running import test for each package: pandas, numpy, plotly, anthropic, pydantic, dotenv, pytest"
+          },
+          {
+            "id": 5,
+            "title": "Create Configuration Files",
+            "description": "Create essential project configuration files including .env.example, .gitignore, and README.md.",
+            "dependencies": [
+              2
+            ],
+            "details": "Create .env.example with placeholder environment variables, .gitignore with Python-specific ignore patterns (venv/, __pycache__/, .env, *.pyc, etc.), and basic README.md with project description and setup instructions.",
+            "status": "done",
+            "testStrategy": "Verify all configuration files are created with appropriate content and proper formatting"
+          }
+        ],
+        "complexity": 3,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down project initialization into: 1) Create directory structure with all required modules, 2) Set up virtual environment configuration, 3) Create requirements.txt with exact version specifications, 4) Initialize empty Python modules with proper __init__.py files, 5) Create basic configuration files (.env.example, .gitignore, README.md)",
+        "updatedAt": "2025-11-08T11:48:08.225Z"
       },
       {
         "id": 2,
@@ -20,10 +76,13 @@
         "testStrategy": "Create unit tests in `tests/test_data_processing/test_ingestion.py` that verify:\n1. Successful loading of valid CSV files\n2. Proper error handling for missing columns\n3. Correct type conversions\n4. Handling of malformed data\n5. Create fixture CSV files with various edge cases (missing columns, wrong types, empty files)",
         "priority": "high",
         "dependencies": [
-          1
+          "1"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [],
+        "complexity": 5,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "Break down into: 1) Implement CSV loading with pandas and column validation, 2) Create Pydantic data validation models with proper type checking, 3) Build robust error handling for malformed data and missing columns, 4) Implement data type conversion and standardization with comprehensive logging"
       },
       {
         "id": 3,
@@ -33,10 +92,13 @@
         "testStrategy": "Create comprehensive tests in `tests/test_data_processing/test_preprocessing.py`:\n1. Test sorting with unsorted data\n2. Test action point identification with various scenarios (no pre-data, no post-data, normal)\n3. Test NaN handling and segment identification\n4. Test data quality checks and metadata generation\n5. Create fixtures with edge cases like all NaN values, single row data, large time gaps",
         "priority": "high",
         "dependencies": [
-          2
+          "2"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [],
+        "complexity": 6,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into: 1) Implement chronological sorting and time validation, 2) Build action point identification (t=0) logic with edge case handling, 3) Create data quality assessment and NaN analysis, 4) Implement metadata generation and logging system, 5) Build data segmentation methods (pre/post action data extraction)"
       },
       {
         "id": 4,
@@ -46,10 +108,13 @@
         "testStrategy": "Create unit tests in `tests/test_metrics/test_basic_metrics.py`:\n1. Test start power with normal data (consistent pre-action values)\n2. Test start power with high variance data\n3. Test start power with all NaN values\n4. Test target power with normal step change\n5. Test target power with no change (minimal step)\n6. Test target power with inconsistent post-action values\n7. Test edge cases: empty dataframes, single row data",
         "priority": "high",
         "dependencies": [
-          3
+          "3"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Break down into: 1) Implement start power calculation with median computation and pre-action data analysis, 2) Implement target power extraction with before/after comparison and validation, 3) Add comprehensive error handling, edge cases, and validation logic for both metrics"
       },
       {
         "id": 5,
@@ -59,10 +124,13 @@
         "testStrategy": "Extend tests in `tests/test_metrics/test_basic_metrics.py`:\n1. Test step direction for UP-STEP (>2% or >50W increase)\n2. Test step direction for DOWN-STEP (>2% or >50W decrease)\n3. Test step direction for MINIMAL-STEP (<2% and <50W)\n4. Test temperature ranges with complete data\n5. Test temperature ranges with missing temperature data\n6. Test temperature rise calculations\n7. Test max temperature timing identification",
         "priority": "high",
         "dependencies": [
-          4
+          "4"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [],
+        "complexity": 4,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Break down into: 1) Implement step direction classification logic using power deltas and thresholds, 2) Implement temperature range analysis with min/max calculations for both PSU and hash board sensors, 3) Add validation, edge case handling, and warning systems for temperature anomalies"
       },
       {
         "id": 6,
@@ -72,10 +140,85 @@
         "testStrategy": "Create tests in `tests/test_metrics/test_time_metrics.py`:\n1. Test band entry with quick achievement\n2. Test band entry with delayed achievement\n3. Test band entry never achieved\n4. Test band entry with intermittent values (consecutive sample validation)\n5. Test setpoint hit with exact match\n6. Test setpoint hit within threshold\n7. Test setpoint hit never achieved with closest approach tracking",
         "priority": "medium",
         "dependencies": [
-          4
+          "4"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement adaptive band tolerance calculation with multiple threshold modes",
+            "description": "Create a flexible band tolerance system that can use percentage-based (±5%), absolute power-based (±30W), or hybrid thresholds for different scenarios and test types.",
+            "dependencies": [],
+            "details": "Extend the TimeMetrics class to support multiple band calculation modes: percentage-only, absolute-only, and adaptive hybrid that chooses the most restrictive. Add configuration options for different threshold values based on power levels and test scenarios. Include validation for threshold selection logic.",
+            "status": "pending",
+            "testStrategy": "Test with various power levels and threshold combinations to ensure proper band calculation in all modes",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Build continuous segment detection for band entry with 15-second dwell time validation",
+            "description": "Implement sophisticated temporal analysis to detect when power enters and maintains the target band for a sustained 15-second period, replacing the simple 3-sample validation.",
+            "dependencies": [
+              1
+            ],
+            "details": "Replace the current consecutive sample logic with time-based validation that requires power to remain within band for at least 15 seconds continuously. Handle sampling rate variations and implement sliding window analysis to detect sustained band maintenance vs brief touches.",
+            "status": "pending",
+            "testStrategy": "Test with data containing brief band touches, sustained entries, and intermittent band maintenance patterns",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Implement comprehensive setpoint hit tracking with 25-second sustain logic",
+            "description": "Enhance setpoint hit detection to track not just first occurrence but sustained achievement within ±30W tolerance for at least 25 seconds.",
+            "dependencies": [
+              1
+            ],
+            "details": "Modify calculate_setpoint_hit to track both initial hit time and sustained achievement time. Implement duration analysis to classify hits as brief touches vs sustained achievements. Add tracking for maximum sustained duration and stability metrics during sustained periods.",
+            "status": "pending",
+            "testStrategy": "Test with various hit patterns including brief touches, oscillating around target, and stable sustained hits",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Create event classification system (brief touches vs sustained hits)",
+            "description": "Build a classification framework to categorize power events as brief touches, oscillating behavior, or sustained achievements for both band entry and setpoint hits.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement event classification logic that analyzes temporal patterns to distinguish between different types of target achievement. Create categories like 'brief_touch', 'oscillating', 'sustained_stable', and 'sustained_variable' with appropriate thresholds and pattern recognition algorithms.",
+            "status": "pending",
+            "testStrategy": "Test classification accuracy with known event patterns and edge cases involving mixed behavior types",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Build closest approach analysis for failure cases",
+            "description": "Implement comprehensive analysis for cases where targets are never achieved, including closest approach timing, duration of closest approach, and trend analysis.",
+            "dependencies": [
+              4
+            ],
+            "details": "Enhance failure case reporting with detailed closest approach metrics including minimum distance from target, time of closest approach, duration spent near target, and trend analysis (approaching vs retreating). Add statistical analysis of near-miss patterns and oscillation detection around targets.",
+            "status": "pending",
+            "testStrategy": "Test with various failure scenarios including steady approach, oscillating near-miss, and trending away patterns",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Add comprehensive edge case handling and validation",
+            "description": "Implement robust error handling and validation for all edge cases including missing data, invalid targets, extreme values, and inconsistent timestamps.",
+            "dependencies": [
+              5
+            ],
+            "details": "Add comprehensive input validation, handle edge cases like missing target data, invalid power readings, timestamp inconsistencies, and extreme outliers. Implement graceful degradation and detailed error reporting. Add data quality checks and warnings for suspicious patterns or data issues.",
+            "status": "pending",
+            "testStrategy": "Test with malformed data, missing values, extreme outliers, and various data quality issues to ensure robust handling",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into: 1) Implement adaptive band tolerance calculation with multiple threshold modes, 2) Build continuous segment detection for band entry with 15-second dwell time validation, 3) Implement comprehensive setpoint hit tracking with 25-second sustain logic, 4) Create event classification system (brief touches vs sustained hits), 5) Build closest approach analysis for failure cases, 6) Add comprehensive edge case handling and validation"
       },
       {
         "id": 7,
@@ -85,10 +228,82 @@
         "testStrategy": "Create comprehensive tests:\n1. Test stable plateau with long stable period\n2. Test stable plateau with multiple short periods\n3. Test stable plateau never achieved\n4. Test sharp drops detection with single drop\n5. Test sharp drops with multiple drops\n6. Test outage period detection\n7. Test combined drops and outages",
         "priority": "medium",
         "dependencies": [
-          6
+          "6"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement stable plateau detection with ±20W tolerance and 30-second minimum duration",
+            "description": "Create the stable plateau detection algorithm that identifies continuous periods where power remains within ±20W of target for at least 30 seconds.",
+            "dependencies": [],
+            "details": "Modify the existing calculate_stable_plateau method in time_metrics.py to use ±20W absolute tolerance instead of percentage-based tolerance. Update the algorithm to properly handle continuous segment detection with the new tolerance criteria. Ensure the method returns duration, start/end times, achievement status, and stability band information.",
+            "status": "pending",
+            "testStrategy": "Test with stable periods meeting criteria, multiple short periods not meeting duration requirement, and edge cases with no stable periods",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Build continuous segment analysis with exit reason classification",
+            "description": "Enhance segment analysis to classify why plateau periods end and provide detailed exit reason information.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add logic to track and classify segment exit reasons (exceeded tolerance, data gap, test end). Implement segment merging for brief interruptions and provide detailed statistics about plateau quality including variance and deviation patterns during stable periods.",
+            "status": "pending",
+            "testStrategy": "Test exit reason classification for tolerance violations, data gaps, and natural test endings with various plateau patterns",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Implement sharp drop detection using rolling 5-second windows and 15% thresholds",
+            "description": "Create sharp drop detection algorithm using rolling time windows and percentage-based thresholds for more accurate anomaly detection.",
+            "dependencies": [],
+            "details": "Replace the existing simple drop detection with a rolling window approach that calculates power changes over 5-second windows. Use 15% threshold for significant drops and implement proper time-based analysis to avoid false positives from normal fluctuations.",
+            "status": "pending",
+            "testStrategy": "Test with gradual declines, sudden drops, and noisy data to validate 15% threshold effectiveness over 5-second windows",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Build overlapping event prevention and time-based deduplication",
+            "description": "Implement sophisticated event deduplication to prevent reporting multiple events for the same underlying power anomaly.",
+            "dependencies": [
+              3
+            ],
+            "details": "Create logic to merge overlapping or closely spaced events within configurable time windows. Implement event priority scoring to keep the most significant event when multiple events overlap. Add configurable suppression periods after major events to prevent duplicate reporting.",
+            "status": "pending",
+            "testStrategy": "Test deduplication with overlapping events, consecutive drops, and various time window configurations to ensure proper event consolidation",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Create summary statistics and worst-case analysis",
+            "description": "Build comprehensive statistical analysis of detected anomalies including worst-case scenarios and trend analysis.",
+            "dependencies": [
+              4
+            ],
+            "details": "Implement statistical aggregation of all detected events including maximum drop magnitude, total anomaly time, frequency analysis, and severity classification. Add worst-case analysis that identifies the most significant events and their impact on system stability.",
+            "status": "pending",
+            "testStrategy": "Test statistical calculations with various event patterns and validate worst-case identification logic with known severe anomaly scenarios",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Add comprehensive validation and edge case handling",
+            "description": "Implement robust error handling, input validation, and edge case management for all anomaly detection algorithms.",
+            "dependencies": [
+              5
+            ],
+            "details": "Add comprehensive input validation for all detection methods, handle edge cases like empty datasets, all-NaN values, and insufficient data periods. Implement graceful degradation when detection algorithms cannot run and provide meaningful error messages and fallback behaviors.",
+            "status": "pending",
+            "testStrategy": "Test with malformed data, empty datasets, extreme values, and various edge cases to ensure robust operation and appropriate error handling",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into: 1) Implement stable plateau detection with ±20W tolerance and 30-second minimum duration, 2) Build continuous segment analysis with exit reason classification, 3) Implement sharp drop detection using rolling 5-second windows and 15% thresholds, 4) Build overlapping event prevention and time-based deduplication, 5) Create summary statistics and worst-case analysis, 6) Add comprehensive validation and edge case handling"
       },
       {
         "id": 8,
@@ -98,10 +313,97 @@
         "testStrategy": "Complete anomaly metric tests:\n1. Test spike detection with clear up/down spikes\n2. Test spike filtering (removing duplicates)\n3. Test spike detection with noisy data\n4. Test overshoot detection for UP-STEP\n5. Test undershoot detection for DOWN-STEP\n6. Test no transient detection for MINIMAL-STEP\n7. Test magnitude and duration calculations",
         "priority": "medium",
         "dependencies": [
-          7
+          "7"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement rolling 5-second window spike detection with 15% threshold",
+            "description": "Replace the existing 3-sample sliding window with a proper 5-second rolling window implementation using 15% deviation threshold for spike detection.",
+            "dependencies": [],
+            "details": "Modify the calculate_spikes method to use a 5-second time-based window instead of 3-sample window. Change threshold from 10% to 15% (upper_threshold = baseline * 1.15, lower_threshold = baseline * 0.85). Implement proper time-based windowing by filtering data within 5-second intervals and calculating rolling statistics.",
+            "status": "pending",
+            "testStrategy": "Test with synthetic data containing clear 5-second spikes at 15% and 20% deviations to verify detection accuracy and threshold boundaries.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Build overlapping spike prevention with processed time tracking",
+            "description": "Implement sophisticated spike deduplication logic to prevent detection of overlapping spikes by tracking processed time intervals.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a processed_intervals list to track already-processed time ranges. Before adding a spike, check if its time window overlaps with any existing processed interval. Extend the current 2-second gap logic to use a configurable window (default 3 seconds) and maintain state of processed regions to avoid duplicate detections in overlapping windows.",
+            "status": "pending",
+            "testStrategy": "Test with data containing multiple closely-spaced spikes to ensure only unique, non-overlapping events are detected.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Implement overshoot detection for UP-STEP transitions with dynamic thresholds",
+            "description": "Enhance the overshoot detection logic for UP-STEP transitions with improved dynamic threshold calculation and peak detection.",
+            "dependencies": [],
+            "details": "Refine the overshoot detection in calculate_overshoot_undershoot method. Implement adaptive thresholds based on target power magnitude (minimum 4% or 200W, whichever is larger). Add peak detection algorithm to find the maximum overshoot point and improve the duration calculation to measure time above threshold more accurately.",
+            "status": "pending",
+            "testStrategy": "Test with UP-STEP data containing clear overshoots of varying magnitudes (5%, 10%, 15%) to verify threshold adaptation and peak detection accuracy.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Build undershoot detection for DOWN-STEP transitions with magnitude analysis",
+            "description": "Implement robust undershoot detection for DOWN-STEP transitions with precise magnitude calculation and trough identification.",
+            "dependencies": [],
+            "details": "Complete the undershoot detection logic in calculate_overshoot_undershoot method. Implement trough detection to find minimum power points during undershoot events. Add magnitude analysis with both absolute (watts) and relative (percentage) calculations. Improve duration measurement to track how long power remains below the threshold.",
+            "status": "pending",
+            "testStrategy": "Test with DOWN-STEP data containing undershoots of different magnitudes to verify trough detection and magnitude calculation accuracy.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Create duration and magnitude calculations for transient events",
+            "description": "Implement comprehensive duration tracking and magnitude analysis for both overshoot and undershoot transient events.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create helper methods for calculating transient event durations by tracking consecutive samples above/below thresholds. Implement magnitude calculations in both absolute watts and percentage terms. Add time-to-peak and recovery time measurements. Include statistical measures like peak/trough power, average deviation during event, and settling time.",
+            "status": "pending",
+            "testStrategy": "Test duration calculations with events of known lengths (2s, 5s, 10s) and verify magnitude calculations against known overshoot/undershoot values.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Implement direction-specific logic based on step classification",
+            "description": "Create robust direction-specific analysis logic that properly handles UP-STEP, DOWN-STEP, and MINIMAL-STEP classifications.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Enhance the direction-based logic to handle edge cases where step direction is ambiguous or MINIMAL-STEP. Add logic to skip transient analysis for MINIMAL-STEP cases. Implement direction validation to ensure overshoot detection only runs for UP-STEP and undershoot only for DOWN-STEP. Add cross-validation between step direction results and detected transients.",
+            "status": "pending",
+            "testStrategy": "Test with all three step direction types (UP-STEP, DOWN-STEP, MINIMAL-STEP) to verify appropriate transient analysis is applied or skipped.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 7,
+            "title": "Add comprehensive validation and edge case handling for all detection modes",
+            "description": "Implement robust error handling, input validation, and edge case management for all spike and transient detection functions.",
+            "dependencies": [
+              1,
+              2,
+              5,
+              6
+            ],
+            "details": "Add comprehensive input validation for all methods including null/empty data checks, invalid baseline values, and malformed target power results. Implement edge case handling for insufficient data, all-NaN segments, extreme outliers, and boundary conditions. Add detailed logging and error messages with specific guidance for each failure mode. Include data quality checks and warnings for suspicious patterns.",
+            "status": "pending",
+            "testStrategy": "Test with edge cases including empty datasets, all-NaN data, extreme outliers, missing baselines, and invalid step directions to ensure graceful handling.",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 7,
+        "expansionPrompt": "Break down into: 1) Implement spike detection using rolling 5-second windows with 15% threshold logic, 2) Build overlapping spike prevention with processed time tracking, 3) Implement overshoot detection for UP-STEP transitions with dynamic thresholds, 4) Build undershoot detection for DOWN-STEP transitions with magnitude analysis, 5) Create duration and magnitude calculations for transient events, 6) Implement direction-specific logic based on step classification, 7) Add comprehensive validation and edge case handling for all detection modes"
       },
       {
         "id": 9,
@@ -111,10 +413,13 @@
         "testStrategy": "Create integration tests in `tests/test_metrics/test_orchestrator.py`:\n1. Test full pipeline with clean data\n2. Test dependency resolution\n3. Test error handling for bad files\n4. Test result validation\n5. Test processing time measurement\n6. Create sample CSV files representing different test scenarios\n7. Verify all metrics are calculated in correct order",
         "priority": "high",
         "dependencies": [
-          8
+          "8"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [],
+        "complexity": 6,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into: 1) Build dependency resolution system with proper execution ordering, 2) Implement error handling and rollback mechanisms for failed calculations, 3) Create result aggregation and validation system, 4) Build processing time tracking and metadata management, 5) Implement comprehensive validation with cross-metric consistency checks"
       },
       {
         "id": 10,
@@ -124,16 +429,99 @@
         "testStrategy": "Run comprehensive test suite:\n1. Execute `pytest -v` to run all tests\n2. Use `pytest --cov=src` for coverage report\n3. Target >90% code coverage\n4. Run `pytest -k test_metric_name` for specific metric tests\n5. Use `pytest --lf` to rerun failed tests\n6. Create GitHub Actions workflow for CI/CD\n7. Add performance benchmarks with pytest-benchmark",
         "priority": "high",
         "dependencies": [
-          9
+          "9"
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create synthetic test data generators with comprehensive scenarios",
+            "description": "Build robust test data generators in tests/fixtures/sample_data.py that create realistic time-series data for UP-STEP, DOWN-STEP, and edge case scenarios including power drops, temperature variations, and outages.",
+            "dependencies": [],
+            "details": "Implement create_upstep_test_data(), create_downstep_with_drops_data(), and additional generators for edge cases like minimal steps, high noise, and missing data segments. Include realistic thermal profiles and PSU temperature data. Add save_test_fixtures() function to persist CSV files for testing.",
+            "status": "pending",
+            "testStrategy": "Validate generated data meets expected statistical properties and contains proper pre/post action segments with realistic transient responses",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Build comprehensive unit test suites for basic metrics",
+            "description": "Create exhaustive unit tests for start_power and target_power metrics covering normal operation, edge cases, and error conditions with multiple test scenarios per metric.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement test_basic_metrics.py with TestStartPower and TestTargetPower classes. Cover normal calculations, no pre-action data, all NaN values, high variance data, and boundary conditions. Test both successful calculations and error handling with proper assertions for median values, achieved status, and metadata.",
+            "status": "pending",
+            "testStrategy": "Run pytest -v tests/test_metrics/test_basic_metrics.py and achieve >95% coverage for basic_metrics.py module",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Create unit tests for step direction and temperature metrics",
+            "description": "Develop comprehensive test coverage for step direction classification and temperature range analysis with various power transition scenarios and thermal data patterns.",
+            "dependencies": [
+              1
+            ],
+            "details": "Extend test_basic_metrics.py with TestStepDirection and TestTemperatureRanges classes. Test UP-STEP (>2% or >50W increase), DOWN-STEP (>2% or >50W decrease), MINIMAL-STEP cases, and temperature analysis with complete/incomplete thermal data. Include boundary testing for percentage and absolute thresholds.",
+            "status": "pending",
+            "testStrategy": "Verify correct classification of all step types and accurate temperature statistics with edge case handling",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement unit tests for anomaly detection metrics",
+            "description": "Build complete test suites for spike detection, sharp drops, and overshoot/undershoot metrics with various anomaly patterns and noise levels in the data.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create test_anomaly_metrics.py with comprehensive coverage of spike detection algorithms, drop identification, and transient response analysis. Test spike filtering, baseline calculations, overshoot detection for UP-STEP, undershoot for DOWN-STEP, and no transient cases for MINIMAL-STEP scenarios.",
+            "status": "pending",
+            "testStrategy": "Validate anomaly detection accuracy with controlled synthetic anomalies and verify proper handling of edge cases",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Create integration tests for full orchestrator pipeline",
+            "description": "Develop end-to-end integration tests that verify the complete metric calculation pipeline from CSV input to final results output with proper error handling and performance validation.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Implement test_integration.py with full pipeline testing using MetricOrchestrator. Test complete workflow from file loading through all metric calculations, validate result structure contains all expected metrics, verify processing time requirements, and test error propagation and recovery.",
+            "status": "pending",
+            "testStrategy": "Run full pipeline tests with pytest and validate processing time <1.0 seconds and success rate >99% across test scenarios",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Set up pytest configuration and performance testing framework",
+            "description": "Configure pytest environment with fixtures, create conftest.py for shared test utilities, and implement performance regression tests to ensure metric calculations remain efficient.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create conftest.py with sample_upstep_df, sample_downstep_df, and temp_csv_file fixtures. Set up pytest.ini configuration, implement performance benchmarking tests, create GitHub Actions workflow for CI/CD, and establish coverage reporting with target >90% code coverage across all modules.",
+            "status": "pending",
+            "testStrategy": "Execute pytest --cov=src to validate coverage targets and run performance benchmarks to establish baseline metrics",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into: 1) Create synthetic test data generators for different scenarios (UP-STEP, DOWN-STEP, edge cases), 2) Build unit test suites for each individual metric with comprehensive edge case coverage, 3) Create integration tests for the full orchestrator pipeline, 4) Implement test fixtures with pytest configuration and data management, 5) Build performance and regression test suites, 6) Create visual validation tools and reporting for metric verification"
       }
     ],
     "metadata": {
-      "created": "2025-11-05T22:33:05.499Z",
-      "updated": "2025-11-05T22:33:05.499Z",
-      "description": "Tasks for master context"
+      "version": "1.0.0",
+      "lastModified": "2025-11-08T11:48:08.226Z",
+      "taskCount": 10,
+      "completedCount": 0,
+      "tags": [
+        "master"
+      ],
+      "created": "2025-11-08T11:52:16.561Z",
+      "description": "Tasks for master context",
+      "updated": "2025-11-08T11:56:37.073Z"
     }
   }
 }
