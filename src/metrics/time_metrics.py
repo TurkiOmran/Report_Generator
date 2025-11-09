@@ -67,6 +67,11 @@ class TimeMetrics:
         tolerance_step = step_magnitude * 0.5
         tolerance = min(tolerance_5pct, tolerance_step)
         
+        # CRITICAL FIX: Band Entry must be wider than Setpoint Hit (±30W)
+        # Ensure minimum tolerance of 50W to maintain meaningful distinction
+        min_tolerance = 50  # watts
+        tolerance = max(tolerance, min_tolerance)
+        
         lower_bound = target - tolerance
         upper_bound = target + tolerance
         

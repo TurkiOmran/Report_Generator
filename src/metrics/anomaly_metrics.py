@@ -4,7 +4,7 @@ Anomaly Detection Metrics Module
 Implements anomaly detection metrics following the pseudocode specification
 in R_Test_Metrics_Complete_Pseudocode_v3.md:
 - METRIC 8: Sharp Drops (15% threshold, 5-second rolling window)
-- METRIC 9: Spikes (15% threshold, 5-second rolling window)
+- METRIC 9: Sharp Rises (15% threshold, 5-second rolling window)
 - METRIC 10: Overshoot/Undershoot (direction-specific transient detection)
 """
 
@@ -22,7 +22,7 @@ class AnomalyMetrics:
     
     Implements:
     - METRIC 8: Sharp Drops (15% threshold, 5-second rolling window)
-    - METRIC 9: Spikes (15% threshold, 5-second rolling window)
+    - METRIC 9: Sharp Rises (15% threshold, 5-second rolling window)
     - METRIC 10: Overshoot/Undershoot (direction-specific transient detection)
     """
     
@@ -149,9 +149,9 @@ class AnomalyMetrics:
             }
         }
     
-    def calculate_spikes(self) -> Dict[str, Any]:
+    def calculate_sharp_rises(self) -> Dict[str, Any]:
         """
-        METRIC 9: Spikes
+        METRIC 9: Sharp Rises
         
         Detect sudden, significant increases in power that indicate instability,
         overshoot, or control anomalies.
@@ -160,7 +160,7 @@ class AnomalyMetrics:
         R_Test_Metrics_Complete_Pseudocode_v3.md - Lines 1265-1423
         
         Returns:
-            Dictionary with spikes list and summary statistics
+            Dictionary with sharp_rises list and summary statistics
         """
         # 1. Define detection criteria
         spike_threshold_pct = 0.15  # 15% of current power
@@ -184,7 +184,7 @@ class AnomalyMetrics:
         
         if len(valid_wattages) < 2:
             return {
-                'spikes': [],
+                'sharp_rises': [],
                 'summary': {
                     'count': 0,
                     'worst_magnitude': None,
@@ -192,15 +192,15 @@ class AnomalyMetrics:
                 }
             }
         
-        # 4. Scan for spikes using rolling window
-        spikes = []
+        # 4. Scan for sharp rises using rolling window
+        sharp_rises = []
         processed_times = set()  # Avoid duplicate detection
         
         for i in range(len(valid_times)):
             current_time = valid_times[i]
             current_wattage = valid_wattages[i]
             
-            # Skip if this time already processed in a previous spike
+            # Skip if this time already processed in a previous sharp rise
             if current_time in processed_times:
                 continue
             
@@ -226,35 +226,35 @@ class AnomalyMetrics:
             
             # Check if rise exceeds threshold
             if rise_percentage >= spike_threshold_pct:
-                # Spike detected
-                spike_duration = max_time - current_time
-                spike_rate = rise_magnitude / spike_duration if spike_duration > 0 else 0
+                # Sharp rise detected
+                rise_duration = max_time - current_time
+                rise_rate = rise_magnitude / rise_duration if rise_duration > 0 else 0
                 
-                spikes.append({
+                sharp_rises.append({
                     'time': float(current_time),
                     'start_wattage': float(current_wattage),
                     'end_wattage': float(max_wattage),
                     'magnitude': float(rise_magnitude),
-                    'duration': float(spike_duration),
-                    'rate': float(spike_rate)
+                    'duration': float(rise_duration),
+                    'rate': float(rise_rate)
                 })
                 
-                # Mark all times in this spike as processed
+                # Mark all times in this sharp rise as processed
                 for t in window_times[:max_idx + 1]:
                     processed_times.add(t)
         
         # 5. Calculate summary statistics
-        if spikes:
-            worst_magnitude = max(s['magnitude'] for s in spikes)
-            worst_rate = max(s['rate'] for s in spikes)  # Most positive
+        if sharp_rises:
+            worst_magnitude = max(s['magnitude'] for s in sharp_rises)
+            worst_rate = max(s['rate'] for s in sharp_rises)  # Most positive
         else:
             worst_magnitude = None
             worst_rate = None
         
         return {
-            'spikes': spikes,
+            'sharp_rises': sharp_rises,
             'summary': {
-                'count': len(spikes),
+                'count': len(sharp_rises),
                 'worst_magnitude': worst_magnitude,
                 'worst_rate': worst_rate
             }

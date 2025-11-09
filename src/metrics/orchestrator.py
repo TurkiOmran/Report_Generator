@@ -45,7 +45,7 @@ class MetricOrchestrator:
             'setpoint_hit',          # METRIC 6 (depends on target_power)
             'stable_plateau',        # METRIC 7 (depends on target_power)
             'sharp_drops',           # METRIC 8 (independent)
-            'spikes',                # METRIC 9 (independent)
+            'sharp_rises',           # METRIC 9 (independent)
             'overshoot_undershoot'   # METRIC 10 (depends on target_power, step_direction)
         ]
     
@@ -66,6 +66,10 @@ class MetricOrchestrator:
                 - error_type: Type of error (only if success=False)
         """
         start_time = datetime.now()
+        
+        # CRITICAL: Reset state for each file to avoid caching between calls
+        self.results = {}
+        self.metadata = {}
         
         try:
             # Step 1: Data ingestion
@@ -195,9 +199,9 @@ class MetricOrchestrator:
         logger.debug("Calculating METRIC 8: Sharp Drops")
         self.results['sharp_drops'] = anomaly_metrics.calculate_sharp_drops()
         
-        # METRIC 9: Spikes (independent)
-        logger.debug("Calculating METRIC 9: Spikes")
-        self.results['spikes'] = anomaly_metrics.calculate_spikes()
+        # METRIC 9: Sharp Rises (independent)
+        logger.debug("Calculating METRIC 9: Sharp Rises")
+        self.results['sharp_rises'] = anomaly_metrics.calculate_sharp_rises()
         
         # METRIC 10: Overshoot/Undershoot (depends on target_power, step_direction)
         logger.debug("Calculating METRIC 10: Overshoot/Undershoot")
@@ -340,7 +344,7 @@ class MetricOrchestrator:
             },
             'anomalies': {
                 'sharp_drops': self.results.get('sharp_drops', {}).get('summary', {}).get('count', 0),
-                'spikes': self.results.get('spikes', {}).get('summary', {}).get('count', 0),
+                'sharp_rises': self.results.get('sharp_rises', {}).get('summary', {}).get('count', 0),
                 'overshoot': self.results.get('overshoot_undershoot', {}).get('overshoot', {}).get('occurred', False),
                 'undershoot': self.results.get('overshoot_undershoot', {}).get('undershoot', {}).get('occurred', False)
             },
