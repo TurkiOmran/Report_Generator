@@ -388,3 +388,151 @@ class TimeMetrics:
                 'never_sustained': never_sustained
             }
         }
+    
+    def calculate_plateau_duration(self, target_power: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        METRIC 7: Stable Plateau Duration
+        
+        Identify and measure all periods of sustained stable operation near target,
+        providing insight into control quality and system stability.
+        
+        Implementation follows pseudocode from:
+        R_Test_Metrics_Complete_Pseudocode_v3.md - Lines 912-1102
+        
+        Args:
+            target_power: Dictionary from METRIC 2
+            
+        Returns:
+            Dictionary with plateaus list and summary statistics
+        """
+        # 1. Define plateau criteria
+        tolerance = 20  # watts (±20W band, tighter than setpoint hit)
+        min_plateau_duration = 30  # seconds
+        
+        # 2. Calculate plateau band
+        target = target_power['after']
+        lower_bound = target - tolerance
+        upper_bound = target + tolerance
+        
+        # 3. Extract post-action data
+        post_action_mask = self.df.index >= self.action_idx
+        post_action = self.df[post_action_mask].copy()
+        
+        if post_action.empty:
+            raise ValueError("No post-action data available")
+        
+        # 4. Create in-band boolean mask (NaN treated as out-of-band)
+        wattage = post_action['summary_wattage']
+        in_band = (wattage >= lower_bound) & (wattage <= upper_bound)
+        in_band = in_band.fillna(False)
+        
+        # 5. Find ALL continuous in-band segments
+        segments = []
+        current_segment_start = None
+        current_segment_start_idx = None
+        
+        for idx, row in post_action.iterrows():
+            time = row['seconds']
+            is_in_band = in_band.loc[idx]
+            current_wattage = row['summary_wattage']
+            
+            if is_in_band and current_segment_start is None:
+                # Entering plateau band
+                current_segment_start = time
+                current_segment_start_idx = idx
+            
+            elif not is_in_band and current_segment_start is not None:
+                # Exiting plateau band - determine exit reason
+                exit_time = time
+                
+                if pd.notna(current_wattage):
+                    if current_wattage < lower_bound:
+                        exit_reason = "dropped_below"
+                    elif current_wattage > upper_bound:
+                        exit_reason = "exceeded_above"
+                    else:
+                        exit_reason = "unknown"
+                else:
+                    exit_reason = "unknown"
+                
+                segment_duration = exit_time - current_segment_start
+                
+                # Calculate average wattage during segment
+                segment_mask = (post_action['seconds'] >= current_segment_start) & \
+                              (post_action['seconds'] < exit_time)
+                segment_wattages = post_action.loc[segment_mask, 'summary_wattage'].dropna()
+                
+                if not segment_wattages.empty:
+                    avg_wattage = segment_wattages.mean()
+                else:
+                    avg_wattage = post_action.loc[current_segment_start_idx, 'summary_wattage']
+                
+                segments.append({
+                    'start_time': current_segment_start,
+                    'duration': segment_duration,
+                    'avg_wattage': avg_wattage,
+                    'exit_time': exit_time,
+                    'exit_reason': exit_reason
+                })
+                
+                current_segment_start = None
+                current_segment_start_idx = None
+        
+        # Handle case where test ends while in plateau
+        if current_segment_start is not None:
+            last_idx = post_action.index[-1]
+            last_time = post_action.loc[last_idx, 'seconds']
+            segment_duration = last_time - current_segment_start
+            
+            # Calculate average wattage during segment
+            segment_mask = post_action['seconds'] >= current_segment_start
+            segment_wattages = post_action.loc[segment_mask, 'summary_wattage'].dropna()
+            
+            if not segment_wattages.empty:
+                avg_wattage = segment_wattages.mean()
+            else:
+                avg_wattage = post_action.loc[current_segment_start_idx, 'summary_wattage']
+            
+            segments.append({
+                'start_time': current_segment_start,
+                'duration': segment_duration,
+                'avg_wattage': avg_wattage,
+                'exit_time': last_time,
+                'exit_reason': 'test_ended'
+            })
+        
+        # 6. Filter for qualifying plateaus (≥30 seconds)
+        plateaus = []
+        
+        for segment in segments:
+            if segment['duration'] >= min_plateau_duration:
+                plateaus.append({
+                    'start_time': float(segment['start_time']),
+                    'duration': float(segment['duration']),
+                    'avg_wattage': float(segment['avg_wattage']),
+                    'exit_time': float(segment['exit_time']),
+                    'exit_reason': segment['exit_reason']
+                })
+        
+        # 7. Calculate summary statistics
+        if plateaus:
+            longest_plateau = max(plateaus, key=lambda p: p['duration'])
+            total_stable_time = sum(p['duration'] for p in plateaus)
+            
+            return {
+                'plateaus': plateaus,
+                'summary': {
+                    'total_count': len(plateaus),
+                    'longest_duration': float(longest_plateau['duration']),
+                    'total_stable_time': float(total_stable_time)
+                }
+            }
+        else:
+            return {
+                'plateaus': [],
+                'summary': {
+                    'total_count': 0,
+                    'longest_duration': 0.0,
+                    'total_stable_time': 0.0
+                }
+            }
