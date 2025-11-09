@@ -144,3 +144,5 @@ All results align with expected miner behavior and power transition physics.
 Task 6 is complete and ready for Task 7: Implement Stable Plateau and Anomaly Detection Metrics.
 
 
+
+
