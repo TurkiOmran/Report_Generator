@@ -552,6 +552,20 @@
         "complexity": 7,
         "recommendedSubtasks": 6,
         "expansionPrompt": "Break down into: 1) Create synthetic test data generators for different scenarios (UP-STEP, DOWN-STEP, edge cases), 2) Build unit test suites for each individual metric with comprehensive edge case coverage, 3) Create integration tests for the full orchestrator pipeline, 4) Implement test fixtures with pytest configuration and data management, 5) Build performance and regression test suites, 6) Create visual validation tools and reporting for metric verification"
+      },
+      {
+        "id": 11,
+        "title": "Comprehensive Real Data Validation Testing Framework",
+        "description": "Create a comprehensive validation testing framework that processes 20+ real CSV files from tests/fixtures/real_data/ directory and generates detailed validation reports to identify and fix any data processing issues.",
+        "details": "Create `scripts/validate_real_data_comprehensive.py` that:\n\n1. **File Discovery and Organization**: Scan `tests/fixtures/real_data/` directory for all CSV files, categorize by naming patterns, and create processing batches.\n\n2. **Comprehensive Processing Pipeline**: For each file, execute the full MetricOrchestrator pipeline:\n   - Data ingestion with validation\n   - Preprocessing with metadata extraction\n   - All 10 metric calculations in dependency order\n   - Result validation and consistency checks\n\n3. **Detailed Reporting System**: Generate JSON and HTML reports containing:\n   - Per-file processing results with success/failure status\n   - Timing metrics for performance analysis\n   - Data quality assessments (missing values, outliers, anomalies)\n   - Metric calculation results summary\n   - Error categorization and stack traces\n   - Statistical analysis across all files\n\n4. **Error Analysis and Fix Recommendations**: \n   - Categorize errors by type (ingestion, preprocessing, metric calculation)\n   - Identify common failure patterns across files\n   - Generate specific fix recommendations for each error type\n   - Create a priority-ranked list of issues to address\n\n5. **Performance Benchmarking**: Track processing times, memory usage, and identify bottlenecks for optimization.\n\n6. **Data Quality Metrics**: Calculate data completeness, consistency scores, and identify files needing manual review.\n\n7. **Automated Issue Detection**: Implement checks for common data issues like missing action points, corrupted timestamps, invalid power values, and temperature sensor failures.\n\nThe script should handle all edge cases gracefully, provide progress indicators for long-running operations, and create both machine-readable (JSON) and human-readable (HTML) output formats. Include command-line options for selective processing, verbose output, and report customization.",
+        "testStrategy": "1. Prepare test environment by placing 20+ diverse real CSV files in `tests/fixtures/real_data/` directory\n2. Run the validation script: `python scripts/validate_real_data_comprehensive.py`\n3. Verify all files are processed without script crashes\n4. Review generated reports in `validation_reports/` directory for completeness\n5. Validate JSON report structure matches expected schema\n6. Check HTML report renders correctly with all sections present\n7. Verify error categorization is accurate and actionable\n8. Test selective processing with `--filter` and `--limit` options\n9. Measure processing performance and memory usage\n10. Confirm all identified issues have specific fix recommendations\n11. Run script multiple times to ensure consistent results\n12. Validate that fixed issues no longer appear in subsequent runs\n13. Test with various file sizes and corruption scenarios\n14. Verify progress indicators work correctly for long operations",
+        "status": "pending",
+        "dependencies": [
+          9,
+          10
+        ],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -564,7 +578,7 @@
       ],
       "created": "2025-11-08T11:52:16.561Z",
       "description": "Tasks for master context",
-      "updated": "2025-11-09T15:20:31.819Z"
+      "updated": "2025-11-09T15:30:13.489Z"
     }
   }
 }
