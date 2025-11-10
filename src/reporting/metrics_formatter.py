@@ -67,7 +67,8 @@ def _extract_basic_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     
     # Metric 1: Start Power
     if 'start_power' in metrics:
-        value = metrics['start_power'].get('value')
+        # Phase 1 returns 'median', not 'value'
+        value = metrics['start_power'].get('median') or metrics['start_power'].get('value')
         if value is not None:
             rows.append({
                 'name': 'Start Power',
@@ -89,7 +90,8 @@ def _extract_basic_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 3: Step Direction
     if 'step_direction' in metrics:
         direction = metrics['step_direction'].get('direction')
-        magnitude = metrics['step_direction'].get('magnitude')
+        # Phase 1 returns 'delta', not 'magnitude'
+        magnitude = metrics['step_direction'].get('delta') or metrics['step_direction'].get('magnitude')
         if direction and magnitude is not None:
             rows.append({
                 'name': 'Step Direction',
@@ -126,14 +128,15 @@ def _extract_time_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 5: Band Entry
     if 'band_entry' in metrics:
         band_data = metrics['band_entry']
-        entered = band_data.get('entered')
+        # Phase 1 returns 'status' with values like 'ENTERED', 'NEVER_ENTERED'
+        status = band_data.get('status', '')
         time_val = band_data.get('time')
-        target = band_data.get('target_power')
+        wattage = band_data.get('wattage')
         
-        if entered:
+        if status == 'ENTERED' and time_val is not None:
             value_str = f"✓ Entered at t={time_val:.1f}s"
-            if target:
-                value_str += f" (target: {target:.0f}W ±5%)"
+            if wattage:
+                value_str += f" ({wattage:.0f}W)"
         else:
             value_str = "✗ Never entered band"
         
@@ -146,14 +149,16 @@ def _extract_time_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 6: Setpoint Hit
     if 'setpoint_hit' in metrics:
         setpoint_data = metrics['setpoint_hit']
-        hit = setpoint_data.get('hit')
-        time_val = setpoint_data.get('time')
-        target = setpoint_data.get('target_power')
+        # Phase 1 returns complex structure with 'summary' containing first_sustained_hit_time
+        summary = setpoint_data.get('summary', {})
+        never_hit = summary.get('never_sustained', True)
+        first_hit_time = summary.get('first_sustained_hit_time')
+        total_hits = summary.get('total_sustained_hits', 0)
         
-        if hit:
-            value_str = f"✓ Hit at t={time_val:.1f}s"
-            if target:
-                value_str += f" (target: {target:.0f}W ±2%)"
+        if not never_hit and first_hit_time is not None:
+            value_str = f"✓ Hit at t={first_hit_time:.1f}s"
+            if total_hits > 1:
+                value_str += f" ({total_hits} sustained hits)"
         else:
             value_str = "✗ Never hit setpoint"
         
@@ -166,11 +171,15 @@ def _extract_time_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 7: Stable Plateau
     if 'stable_plateau' in metrics:
         plateau_data = metrics['stable_plateau']
-        achieved = plateau_data.get('achieved')
-        start_time = plateau_data.get('start_time')
-        duration = plateau_data.get('duration')
+        # Phase 1 returns 'plateaus' list and 'summary' with counts
+        plateaus = plateau_data.get('plateaus', [])
+        summary = plateau_data.get('summary', {})
+        plateau_count = summary.get('total_count', 0)
         
-        if achieved:
+        if plateau_count > 0 and plateaus:
+            first_plateau = plateaus[0]
+            start_time = first_plateau.get('start_time')
+            duration = first_plateau.get('duration')
             value_str = f"✓ Achieved at t={start_time:.1f}s"
             if duration:
                 value_str += f" (duration: {duration:.1f}s)"
@@ -193,8 +202,10 @@ def _extract_anomaly_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 8: Sharp Drops
     if 'sharp_drops' in metrics:
         drops_data = metrics['sharp_drops']
-        count = drops_data.get('count', 0)
-        details = drops_data.get('details', [])
+        # Phase 1 returns 'summary' with 'count' and 'sharp_drops' list
+        summary = drops_data.get('summary', {})
+        count = summary.get('count', 0)
+        details = drops_data.get('sharp_drops', [])
         
         value_str = f"{count} drop(s) detected"
         if details:
@@ -209,8 +220,10 @@ def _extract_anomaly_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 9: Sharp Rises  
     if 'sharp_rises' in metrics:
         rises_data = metrics['sharp_rises']
-        count = rises_data.get('count', 0)
-        details = rises_data.get('details', [])
+        # Phase 1 returns 'summary' with 'count' and 'sharp_rises' list
+        summary = rises_data.get('summary', {})
+        count = summary.get('count', 0)
+        details = rises_data.get('sharp_rises', [])
         
         value_str = f"{count} rise(s) detected"
         if details:
@@ -225,13 +238,25 @@ def _extract_anomaly_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 10: Overshoot/Undershoot
     if 'overshoot_undershoot' in metrics:
         overshoot_data = metrics['overshoot_undershoot']
-        detected = overshoot_data.get('detected')
-        event_type = overshoot_data.get('type')
-        time_val = overshoot_data.get('time')
-        magnitude = overshoot_data.get('magnitude')
+        # Phase 1 returns nested 'overshoot' and 'undershoot' objects
+        overshoot = overshoot_data.get('overshoot', {})
+        undershoot = overshoot_data.get('undershoot', {})
         
-        if detected:
-            value_str = f"✓ {event_type} detected"
+        overshoot_occurred = overshoot.get('occurred', False)
+        undershoot_occurred = undershoot.get('occurred', False) if undershoot else False
+        
+        if overshoot_occurred:
+            value_str = "✓ Overshoot detected"
+            time_val = overshoot.get('time')
+            magnitude = overshoot.get('magnitude')
+            if time_val is not None:
+                value_str += f" at t={time_val:.1f}s"
+            if magnitude is not None:
+                value_str += f" ({magnitude:+.0f}W)"
+        elif undershoot_occurred:
+            value_str = "✓ Undershoot detected"
+            time_val = undershoot.get('time')
+            magnitude = undershoot.get('magnitude')
             if time_val is not None:
                 value_str += f" at t={time_val:.1f}s"
             if magnitude is not None:

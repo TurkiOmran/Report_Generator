@@ -394,18 +394,20 @@ def _generate_header_section(metadata: Dict[str, Any]) -> str:
 
 def _generate_metadata_section(metadata: Dict[str, Any]) -> str:
     """Generate metadata section with file and test information."""
-    # Extract metadata fields
+    # Extract metadata fields - Phase 1 returns different keys
     filename = metadata.get('filename', 'Unknown')
     test_id = metadata.get('test_id', 'N/A')
     miner_number = metadata.get('miner_number', 'N/A')
     timestamp = metadata.get('timestamp', 'N/A')
-    total_samples = metadata.get('total_samples', 0)
-    duration = metadata.get('duration_seconds', 0)
     
-    # Get step direction from metrics if available
-    step_direction = 'N/A'
-    if 'step_direction' in metadata:
-        step_direction = metadata['step_direction']
+    # Phase 1 uses 'total_rows', not 'total_samples'
+    total_samples = metadata.get('total_rows') or metadata.get('total_samples', 0)
+    
+    # Phase 1 uses 'processing_time_seconds', not 'duration_seconds'
+    duration = metadata.get('processing_time_seconds') or metadata.get('duration_seconds', 0)
+    
+    # Phase 1 uses 'transition_direction', not 'step_direction'
+    step_direction = metadata.get('transition_direction') or metadata.get('step_direction', 'N/A')
     
     return f'''
     <div class="section metadata-section">
