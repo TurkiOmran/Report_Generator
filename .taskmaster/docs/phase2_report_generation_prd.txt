@@ -1,0 +1,740 @@
+# Power Profile Report Generator - Phase 2 PRD
+
+**Project:** Miner Power Profile Report Generator - Phase 2
+**Type:** Report Generation Pipeline
+**Phase:** 2 of 3
+**Status:** Phase 1 Complete - Ready to Begin
+
+---
+
+<overview>
+
+## Problem Statement
+
+Phase 1 delivered deterministic metric calculation with 100% consistency. However, metrics alone don't tell the full story - operators need:
+- **Visual representation** of power behavior over time
+- **Narrative analysis** explaining what happened during the test
+- **Professional reports** that can be shared with stakeholders
+- **Single file output** that's easy to distribute and archive
+
+Currently, metrics exist only as Python dictionaries with no presentation layer.
+
+## Target Users
+
+**Primary**: Test engineers analyzing miner power profile behavior
+**Secondary**: Operations team reviewing test quality, Management reviewing test summaries
+
+## Success Metrics
+
+- Report generation completes in <30 seconds (including LLM analysis)
+- HTML reports render correctly in all major browsers
+- Chart is interactive and displays all key events
+- LLM analysis is factually accurate (no hallucinated metrics)
+- Single self-contained HTML file (no external dependencies)
+- Zero manual formatting or post-processing required
+
+</overview>
+
+---
+
+<functional-decomposition>
+
+## Capability Tree
+
+### Capability: Data Visualization
+Generate interactive Plotly chart showing power behavior over time.
+
+#### Feature: Power Timeline Chart
+- **Description**: Time-series plot of actual power consumption with key thresholds
+- **Inputs**: raw_data (time series), metrics (band/setpoint boundaries), metadata (action time)
+- **Outputs**: Plotly Figure object (JSON-serializable)
+- **Behavior**: 
+  - Plot wattage vs time
+  - Add vertical line at action time (t=0)
+  - Add horizontal band entry zone (faded)
+  - Add horizontal setpoint zone (faded)
+  - Configure interactive hover tooltips
+
+#### Feature: Chart Embedding
+- **Description**: Convert Plotly figure to embeddable HTML div
+- **Inputs**: Plotly Figure object
+- **Outputs**: HTML string with embedded JavaScript
+- **Behavior**: Use plotly.offline.plot() to generate self-contained div (no CDN dependencies)
+
+---
+
+### Capability: LLM Analysis
+Generate narrative description of test behavior using Claude API with raw data analysis.
+
+#### Feature: Prompt Template Management
+- **Description**: Static prompt template with dynamic placeholders for test context
+- **Inputs**: Test metadata (step direction, power levels, filename)
+- **Outputs**: Formatted prompt string with placeholders filled
+- **Behavior**: 
+  - Hardcoded Python string template (user-maintainable)
+  - Inject test-specific context: "ramp up" vs "ramp down", "X W → Y W"
+  - Include raw CSV data in prompt
+  - No metrics included (unbiased analysis)
+
+#### Feature: API Communication
+- **Description**: Send raw data + prompt to Claude API and retrieve analysis
+- **Inputs**: Prompt template, raw_data (list of dicts), API key (from environment)
+- **Outputs**: Analysis text (markdown format)
+- **Behavior**:
+  - Use anthropic Python package
+  - Model: claude-sonnet-4-20250514
+  - Format CSV data for LLM consumption (~13,500 tokens for typical test)
+  - Timeout: 60 seconds
+  - Raise error on API failure (no retry in Phase 2)
+  - Track token usage for cost monitoring
+
+---
+
+### Capability: HTML Report Generation
+Assemble complete HTML report with metrics, analysis, and visualization.
+
+#### Feature: Metrics Table Formatter
+- **Description**: Convert metrics dict to structured HTML table
+- **Inputs**: metrics dict
+- **Outputs**: HTML table string
+- **Behavior**:
+  - Group metrics by category (Basic, Time-Based, Anomaly)
+  - Format numeric values (2 decimal places for floats)
+  - Display detailed lists (sharp drops times, plateau ranges, brief touches)
+  - Use semantic HTML (proper table structure)
+
+#### Feature: Report Template Builder
+- **Description**: Generate complete HTML document with embedded CSS/JS
+- **Inputs**: All components (header, metrics table, analysis, chart)
+- **Outputs**: Complete HTML string
+- **Behavior**:
+  - Embedded CSS for professional styling
+  - Responsive layout
+  - Fixed section order: Header → Metadata → Analysis → Metrics → Chart
+  - All assets inline (no external dependencies)
+
+#### Feature: File Export
+- **Description**: Save HTML report to disk
+- **Inputs**: HTML string, output path
+- **Outputs**: Saved file path
+- **Behavior**: 
+  - Create output directory if needed
+  - Generate filename from test data (e.g., "report_r3_39_2025-08-27.html")
+  - Write with UTF-8 encoding
+  - Return absolute path to saved file
+
+</functional-decomposition>
+
+---
+
+<structural-decomposition>
+
+## Repository Structure
+
+```
+project-root/
+├── src/
+│   ├── metrics/
+│   │   └── orchestrator.py      # Phase 1 (complete)
+│   ├── visualization/
+│   │   ├── plotter.py            # Power timeline chart
+│   │   └── __init__.py
+│   ├── analysis/
+│   │   ├── prompt_template.py    # Hardcoded prompt template
+│   │   ├── claude_client.py      # API communication + CSV formatting
+│   │   └── __init__.py
+│   ├── reporting/
+│   │   ├── html_generator.py     # Template builder
+│   │   ├── metrics_formatter.py  # Metrics table HTML
+│   │   ├── file_exporter.py      # Save to disk
+│   │   └── __init__.py
+│   └── pipeline/
+│       ├── report_pipeline.py    # Orchestrates Phase 2
+│       └── __init__.py
+├── tests/
+│   ├── test_visualization.py
+│   ├── test_analysis.py
+│   ├── test_reporting.py
+│   └── test_pipeline.py
+├── outputs/                      # Generated reports
+└── examples/
+    └── sample_report.html        # Reference output
+```
+
+## Module Definitions
+
+### Module: visualization
+- **Maps to capability**: Data Visualization
+- **Responsibility**: Convert metrics and raw data into interactive Plotly chart
+- **Exports**:
+  - `create_power_timeline(raw_data, metrics, metadata)` → Plotly Figure
+  - `figure_to_html(fig)` → HTML string with embedded chart
+
+### Module: analysis
+- **Maps to capability**: LLM Analysis
+- **Responsibility**: Generate narrative analysis via Claude API using raw data
+- **Exports**:
+  - `ANALYSIS_PROMPT_TEMPLATE` → hardcoded string template with placeholders
+  - `format_csv_for_llm(raw_data)` → CSV string formatted for token efficiency
+  - `build_prompt(template, test_metadata, raw_data)` → complete prompt with data
+  - `get_analysis(prompt, api_key)` → analysis text
+  - `analyze_test(raw_data, metadata, api_key)` → analysis text (convenience wrapper)
+
+### Module: reporting
+- **Maps to capability**: HTML Report Generation
+- **Responsibility**: Format and assemble HTML reports
+- **Exports**:
+  - `format_metrics_table(metrics)` → HTML table string
+  - `generate_html_report(header, analysis, metrics_table, chart_html)` → complete HTML
+  - `save_report(html_content, output_path)` → saved file path
+
+### Module: pipeline
+- **Maps to capability**: End-to-End Orchestration
+- **Responsibility**: Coordinate Phase 1 metrics + Phase 2 report generation
+- **Exports**:
+  - `ReportPipeline.generate_report(filepath, output_dir)` → report path
+  - `ReportPipeline.generate_batch(filepaths, output_dir)` → list of report paths
+
+</structural-decomposition>
+
+---
+
+<dependency-graph>
+
+## Dependency Chain
+
+### Foundation Layer (Phase 1 - Already Complete)
+- **metrics/orchestrator**: Provides MetricOrchestrator.process_file()
+
+### Phase 2 - Layer 1 (Independent Components)
+These can be built in parallel - no inter-dependencies:
+
+- **visualization/plotter**: Depends on [plotly, metrics output structure]
+- **analysis/prompt_template**: Depends on [nothing - hardcoded string]
+- **analysis/claude_client**: Depends on [anthropic package, environment config, prompt_template]
+
+### Phase 2 - Layer 2 (Formatting Components)
+- **reporting/metrics_formatter**: Depends on [metrics output structure]
+- **analysis/analyze_test**: Depends on [claude_client, prompt_template]
+
+### Phase 2 - Layer 3 (Assembly)
+- **reporting/html_generator**: Depends on [metrics_formatter, visualization]
+- **reporting/file_exporter**: Depends on [html_generator]
+
+### Phase 2 - Layer 4 (Orchestration)
+- **pipeline/report_pipeline**: Depends on [orchestrator, visualization, analysis, reporting]
+
+</dependency-graph>
+
+---
+
+<implementation-roadmap>
+
+## Development Phases
+
+### Phase 2.1: Visualization Foundation
+**Goal**: Generate interactive Plotly chart from metrics data
+
+**Entry Criteria**: Phase 1 MetricOrchestrator working and tested
+
+**Tasks**:
+- [ ] Implement `create_power_timeline()` in plotter.py
+  - Acceptance: Chart shows time vs wattage with action line
+  - Test: Verify band/setpoint zones render correctly
+  
+- [ ] Add band entry zone rendering (faded horizontal band)
+  - Acceptance: Band limits match metrics['band_entry']['band_limits']
+  - Test: Visual inspection with known data
+  
+- [ ] Add setpoint zone rendering (faded horizontal band)
+  - Acceptance: Setpoint = target ± 30W
+  - Test: Zone properly centered on target power
+  
+- [ ] Implement `figure_to_html()` for embedding
+  - Acceptance: Returns self-contained HTML div
+  - Test: No external CDN links in output
+
+**Exit Criteria**: Can generate and embed interactive chart from real CSV data
+
+**Delivers**: Standalone chart generation capability
+
+---
+
+### Phase 2.2: LLM Analysis Integration
+**Goal**: Generate narrative analysis via Claude API using raw data
+
+**Entry Criteria**: Phase 2.1 complete
+
+**Tasks**:
+- [ ] Create `ANALYSIS_PROMPT_TEMPLATE` in prompt_template.py
+  - Acceptance: Hardcoded string with placeholders for step direction and power levels
+  - Test: Template can be formatted with test metadata
+  
+- [ ] Implement `format_csv_for_llm()` in claude_client.py
+  - Acceptance: Converts raw_data to compact CSV string for token efficiency
+  - Test: Verify formatted output is valid CSV, check token count
+  
+- [ ] Implement `build_prompt()` to inject test context
+  - Acceptance: Fills placeholders (UP-STEP vs DOWN-STEP, power range)
+  - Test: Verify correct context injection for different test types
+  
+- [ ] Implement `get_analysis()` in claude_client.py
+  - Acceptance: Successfully calls Claude API with raw data + prompt
+  - Test: Mock API responses, handle timeouts, track token usage
+  
+- [ ] Create `.env` template for API key management
+  - Acceptance: Clear instructions for setting ANTHROPIC_API_KEY
+  - Test: Error message if key missing
+  
+- [ ] Write integration test with real API call
+  - Acceptance: Can generate analysis from sample CSV data
+  - Test: Manual review of analysis quality, verify no metrics leakage
+
+**Exit Criteria**: Can generate unbiased analysis from raw data only
+
+**Delivers**: LLM-powered narrative generation (independent of Phase 1 metrics)
+
+---
+
+### Phase 2.3: HTML Report Assembly
+**Goal**: Format and assemble complete HTML reports
+
+**Entry Criteria**: Phase 2.1 and 2.2 complete
+
+**Tasks**:
+- [ ] Implement `format_metrics_table()` in metrics_formatter.py
+  - Acceptance: All 10 metrics displayed with proper grouping
+  - Test: Verify detailed lists (drops, rises, plateaus) render correctly
+  
+- [ ] Design HTML template in html_generator.py
+  - Acceptance: Professional appearance, responsive layout
+  - Test: Render in Chrome, Firefox, Safari
+  
+- [ ] Implement `generate_html_report()` assembler
+  - Acceptance: Correct section order, embedded CSS/JS
+  - Test: Single file with no external dependencies
+  
+- [ ] Implement `save_report()` in file_exporter.py
+  - Acceptance: Creates output directory, saves with proper filename
+  - Test: Filename format matches pattern
+
+**Exit Criteria**: Can generate complete self-contained HTML reports
+
+**Delivers**: Full report generation capability
+
+---
+
+### Phase 2.4: End-to-End Pipeline
+**Goal**: Orchestrate complete workflow from CSV to HTML report
+
+**Entry Criteria**: All Phase 2.1-2.3 complete
+
+**Tasks**:
+- [ ] Implement `ReportPipeline.generate_report()` in report_pipeline.py
+  - Acceptance: Single function call produces complete report
+  - Test: End-to-end test with real CSV files
+  
+- [ ] Add error handling for each pipeline stage
+  - Acceptance: Clear error messages at each stage
+  - Test: Simulate failures (bad CSV, API error, disk full)
+  
+- [ ] Implement `generate_batch()` for multiple files
+  - Acceptance: Process multiple CSVs in sequence
+  - Test: Batch of 10 files completes successfully
+  
+- [ ] Create example usage script
+  - Acceptance: Clear demonstration of API usage
+  - Test: Example runs without modification
+
+**Exit Criteria**: Complete Phase 2 pipeline functional and documented
+
+**Delivers**: Production-ready report generation system
+
+</implementation-roadmap>
+
+---
+
+<test-strategy>
+
+## Test Pyramid
+
+```
+        /\
+       /E2E\       ← 10% (Full CSV → HTML report)
+      /------\
+     /Integration\ ← 30% (Pipeline stages, API mocking)
+    /------------\
+   /  Unit Tests  \ ← 60% (Individual functions)
+  /----------------\
+```
+
+## Coverage Requirements
+- Line coverage: 85% minimum
+- Branch coverage: 80% minimum
+- All public functions: 100% coverage
+
+## Critical Test Scenarios
+
+### visualization/plotter
+**Happy path**:
+- Valid metrics + raw_data → Chart renders with all zones
+- Expected: Interactive Plotly chart with correct boundaries
+
+**Edge cases**:
+- Empty raw_data → Should handle gracefully
+- Missing band_entry → Chart renders without band zone
+- Expected: No crashes, clear warning logs
+
+**Error cases**:
+- Invalid data types → Raise TypeError
+- Expected: Clear error message
+
+### analysis/claude_client
+**Happy path**:
+- Valid prompt + raw data + API key → Returns analysis text
+- Expected: Text length > 100 characters, analysis based on data patterns
+
+**Edge cases**:
+- Large CSV data (~900 rows) → Should work within token limits (~13,500 tokens)
+- Expected: Successful completion, token usage logged
+
+**Error cases**:
+- Invalid API key → Raise AuthenticationError
+- Network timeout → Raise TimeoutError
+- Token limit exceeded → Raise appropriate error
+- Expected: No silent failures
+
+**Integration**:
+- Mock API responses for repeatable tests
+- One real API test with full CSV data (marked as integration)
+- Verify prompt template injection works correctly
+
+### reporting/html_generator
+**Happy path**:
+- All components provided → Valid HTML document
+- Expected: Passes HTML validation, renders correctly
+
+**Edge cases**:
+- Special characters in metrics → Proper HTML escaping
+
+**Error cases**:
+- None type inputs → Raise ValueError
+- Expected: Clear indication of missing component
+
+### pipeline/report_pipeline
+**End-to-end**:
+- CSV file → Complete HTML report saved to disk
+- Expected: File exists, opens in browser, displays correctly
+
+**Integration**:
+- All pipeline stages execute in order
+- Expected: Metrics → Viz → Analysis → HTML → Save
+
+## Test Generation Guidelines
+
+- Use pytest fixtures for sample metrics data
+- Mock Claude API by default (use `@pytest.mark.integration` for real calls)
+- Visual tests should save output to `tests/output/` for manual inspection
+- Parametrize tests with different step directions (UP/DOWN/MINIMAL)
+- Test with real CSV files from Phase 1 validation set
+
+</test-strategy>
+
+---
+
+<architecture>
+
+## System Components
+
+### Visualization Layer (Plotly)
+- **Technology**: Plotly Python (offline mode)
+- **Output**: Embedded HTML/JS (no CDN dependencies)
+- **Styling**: To be decided during implementation
+
+### Analysis Layer (Claude API)
+- **Model**: claude-sonnet-4-20250514
+- **Context**: Raw CSV data (~13,500 tokens per test) + prompt template
+- **Prompt**: Hardcoded template with dynamic placeholders (step direction, power levels)
+- **Output**: Markdown-formatted text
+- **Cost**: ~$0.04-0.05 per analysis (at $3/M input tokens)
+- **Error Handling**: Fail fast (no retry logic in Phase 2)
+- **Token Tracking**: Log input/output token usage for cost monitoring
+
+### Reporting Layer (HTML Generation)
+- **Template Engine**: Python f-strings (no Jinja2 needed for Phase 2)
+- **CSS Framework**: Embedded custom CSS (no Bootstrap/Tailwind)
+- **Layout**: Fixed sections, responsive design
+
+### Pipeline Orchestration
+- **Pattern**: Sequential pipeline (no async in Phase 2)
+- **Error Handling**: Raise exceptions up to caller
+- **Logging**: Python logging module (INFO level default)
+
+## Data Flow
+
+```
+CSV File
+  ↓
+MetricOrchestrator.process_file()
+  ↓
+result = {metrics, raw_data, metadata}
+  ↓
+┌─────────────┬──────────────────────────┬────────────────┐
+│ Visualization│  Analysis                │  Formatting    │
+│ (Plotly)    │  (Claude + raw_data)     │  (HTML Table)  │
+│             │  - Template injection    │                │
+│             │  - CSV formatting        │                │
+└─────────────┴──────────────────────────┴────────────────┘
+  ↓           ↓                          ↓
+HTML Generator (Assembles all components)
+  ↓
+File Exporter (Saves to disk)
+  ↓
+report_r3_39_2025-08-27.html
+```
+
+## Technology Stack
+
+- **Visualization**: plotly >= 5.0
+- **LLM**: anthropic >= 0.25.0
+- **Environment**: python-dotenv
+- **Testing**: pytest, pytest-mock
+
+## Key Design Decisions
+
+**Decision: Embedded CSS/JS vs External Files**
+- **Rationale**: Single-file portability, easy sharing
+- **Trade-offs**: Larger file size, no CDN caching
+- **Alternatives**: Separate CSS/JS files (rejected for Phase 2)
+
+**Decision: No Retry Logic for API Calls**
+- **Rationale**: Fail fast, clear error messages
+- **Trade-offs**: Less resilient to transient failures
+- **Alternatives**: Add retry in Phase 2.5 if needed
+
+**Decision: Send Raw Data (Not Metrics) to LLM**
+- **Rationale**: Unbiased analysis, LLM discovers patterns independently
+- **Trade-offs**: Higher token usage (~13,500 vs ~500), longer processing time (20-25s vs 5-10s), higher cost ($0.04-0.05 per report)
+- **Benefits**: No bias from deterministic metrics, independent validation of patterns
+- **Alternatives**: Metrics-based analysis (rejected to avoid bias)
+
+**Decision: Sequential Pipeline (No Async)**
+- **Rationale**: Simpler code, adequate performance
+- **Trade-offs**: Can't parallelize visualization + analysis
+- **Alternatives**: Async in Phase 3 if batch performance critical
+
+</architecture>
+
+---
+
+<metrics-output-structure>
+
+## Phase 1 Metrics Structure Reference
+
+```python
+# METRICS OUTPUT STRUCTURE - QUICK REFERENCE
+# Top Level
+result = {
+    'success': bool,
+    'metrics': {...},        # All 10 metrics
+    'metadata': {...},       # Processing info
+    'raw_data': [...]        # For visualization (list of dicts)
+}
+
+# Individual Metrics
+metrics = {
+    'start_power': {
+        'median': float,
+        'last_value': float | None,
+        'difference': float | None,
+        'note': str | None
+    },
+    
+    'target_power': {
+        'before': float,
+        'after': float,
+        'change': float
+    },
+    
+    'step_direction': {
+        'direction': str,    # 'UP-STEP' | 'DOWN-STEP' | 'MINIMAL-STEP'
+        'delta': float,
+        'description': str
+    },
+    
+    'temperature_ranges': {
+        'hash_board_max': {'min': float, 'max': float, 'peak': float, 'range': float},
+        'psu_max': {'min': float, 'max': float, 'peak': float, 'range': float}
+    },
+    
+    'band_entry': {
+        'status': str,       # 'ENTERED' | 'NOT_ENTERED' | 'INITIALLY_IN_BAND' | 
+                             # 'BRIEF_ENTRY_NOT_SUSTAINED' | 'BRIEFLY_IN_BAND_AT_START' | 'NO_VALID_DATA'
+        'time': float,       # Time in seconds (NOT time_seconds)
+        'wattage': float,
+        'percentage': float,
+        'band_limits': {'lower': float, 'upper': float, 'tolerance': float},
+        'entry_method': str, # 'consecutive' | 'immediate' | 'initially_in_band'
+        
+        # Conditional fields (depending on status):
+        'left_at': float | None,      # If status='BRIEFLY_IN_BAND_AT_START'
+        'duration': float | None,     # If status='BRIEF_ENTRY_NOT_SUSTAINED'
+        'closest_approach': {         # If status='NOT_ENTERED'
+            'time': float,
+            'wattage': float,
+            'distance': float
+        } | None
+    },
+    
+    'setpoint_hit': {
+        'brief_touches': [{'time': float, 'wattage': float, 'duration': float}],
+        'sustained_hits': [{'start_time': float, 'end_time': float, 'duration': float}],
+        'summary': {
+            'total_brief_touches': int,
+            'total_sustained_hits': int,
+            'first_sustained_hit_time': float | None,
+            'never_sustained': bool  # True if never achieved sustained hit
+        }
+    },
+    
+    'stable_plateau': {
+        'plateaus': [{'start_time': float, 'exit_time': float, 'duration': float}],
+        'summary': {
+            'total_count': int,
+            'longest_duration': float,
+            'total_stable_time': float
+        }
+    },
+    
+    'sharp_drops': {
+        'sharp_drops': [{'time': float, 'magnitude': float, 'duration': float}],
+        'summary': {'count': int, 'worst_magnitude': float | None}
+    },
+    
+    'sharp_rises': {
+        'sharp_rises': [{'time': float, 'magnitude': float, 'duration': float}],
+        'summary': {'count': int, 'worst_magnitude': float | None}
+    },
+    
+    'overshoot_undershoot': {
+        'overshoot': {  # For UP-STEP only (None for DOWN-STEP/MINIMAL)
+            'occurred': bool,
+            'time': float,
+            'peak_wattage': float,
+            'magnitude': float,
+            'duration': float
+        } | None,
+        'undershoot': {  # For DOWN-STEP only (None for UP-STEP/MINIMAL)
+            'occurred': bool,
+            'time': float,
+            'lowest_wattage': float,
+            'magnitude': float,
+            'duration': float
+        } | None,
+        'threshold': float
+    }
+}
+
+# Usage Example
+from src.metrics.orchestrator import MetricOrchestrator
+orchestrator = MetricOrchestrator()
+result = orchestrator.process_file('data.csv')
+if result['success']:
+    metrics = result['metrics']
+    # Access: metrics['start_power']['median']
+    # Access: metrics['band_entry']['time']  # NOT 'time_seconds'!
+    # Access: metrics['sharp_drops']['summary']['count']
+    # Access: metrics['setpoint_hit']['summary']['never_sustained']
+    # Access: metrics['temperature_ranges']['hash_board_max']['peak']
+```
+
+</metrics-output-structure>
+
+---
+
+<risks>
+
+## Technical Risks
+
+**Risk**: Claude API rate limits during batch processing
+- **Impact**: High - blocks report generation
+- **Likelihood**: Medium
+- **Mitigation**: Add rate limit tracking, pause between requests
+- **Fallback**: Queue system for Phase 3
+
+**Risk**: Plotly figures too large (>10MB) for embedding
+- **Impact**: Medium - slow report loading
+- **Likelihood**: Low (typical CSV ~700 rows)
+- **Mitigation**: Monitor figure size, add warning if >5MB
+- **Fallback**: External JS file option in Phase 2.5
+
+**Risk**: HTML rendering inconsistencies across browsers
+- **Impact**: Medium - poor user experience
+- **Likelihood**: Low (using standard HTML5)
+- **Mitigation**: Test in Chrome, Firefox, Safari
+- **Fallback**: Browser compatibility notice in docs
+
+## Dependency Risks
+
+**Risk**: Anthropic API breaking changes
+- **Impact**: High - analysis stops working
+- **Likelihood**: Low (stable API)
+- **Mitigation**: Pin anthropic package version
+- **Fallback**: Version compatibility matrix in docs
+
+**Risk**: Plotly API changes affecting embedding
+- **Impact**: Medium - chart breaks
+- **Likelihood**: Low
+- **Mitigation**: Pin plotly version, test after upgrades
+- **Fallback**: Lock to known-good version
+
+## Scope Risks
+
+**Risk**: Report customization requests (colors, layout, sections)
+- **Impact**: Low - scope creep
+- **Likelihood**: High (common after seeing first reports)
+- **Mitigation**: Document as Phase 2.5 enhancements
+- **Fallback**: Configuration file for Phase 3
+
+</risks>
+
+---
+
+<appendix>
+
+## References
+- Plotly Python Documentation: https://plotly.com/python/
+- Anthropic API Docs: https://docs.anthropic.com/
+- HTML5 Specification for embedding
+
+## Glossary
+- **Embedding**: Including CSS/JS directly in HTML (not external files)
+- **Self-contained**: HTML file with no external dependencies
+- **Faded zone**: Semi-transparent colored region on chart
+- **Prompt Template**: Hardcoded Python string with placeholders like `{step_direction}` and `{power_range}`
+
+## Prompt Template Example
+
+```python
+# src/analysis/prompt_template.py
+ANALYSIS_PROMPT_TEMPLATE = """
+Analyze the following power profile test data:
+
+Test Type: {step_direction}  # e.g., "ramp up" or "ramp down"
+Power Range: {power_range}    # e.g., "2000W → 3500W"
+
+Raw CSV Data:
+{csv_data}
+
+[User will provide specific analysis instructions here]
+"""
+```
+
+**Note**: The user will maintain and update this template as needed. The implementation simply fills placeholders and calls the API.
+
+## Open Questions
+- Color scheme to be decided during implementation
+- Manual cleanup of reports only (no auto-deletion)
+- Exact prompt wording to be finalized by user
+
+</appendix>

@@ -559,26 +559,268 @@
         "description": "Create a comprehensive validation testing framework that processes 20+ real CSV files from tests/fixtures/real_data/ directory and generates detailed validation reports to identify and fix any data processing issues.",
         "details": "Create `scripts/validate_real_data_comprehensive.py` that:\n\n1. **File Discovery and Organization**: Scan `tests/fixtures/real_data/` directory for all CSV files, categorize by naming patterns, and create processing batches.\n\n2. **Comprehensive Processing Pipeline**: For each file, execute the full MetricOrchestrator pipeline:\n   - Data ingestion with validation\n   - Preprocessing with metadata extraction\n   - All 10 metric calculations in dependency order\n   - Result validation and consistency checks\n\n3. **Detailed Reporting System**: Generate JSON and HTML reports containing:\n   - Per-file processing results with success/failure status\n   - Timing metrics for performance analysis\n   - Data quality assessments (missing values, outliers, anomalies)\n   - Metric calculation results summary\n   - Error categorization and stack traces\n   - Statistical analysis across all files\n\n4. **Error Analysis and Fix Recommendations**: \n   - Categorize errors by type (ingestion, preprocessing, metric calculation)\n   - Identify common failure patterns across files\n   - Generate specific fix recommendations for each error type\n   - Create a priority-ranked list of issues to address\n\n5. **Performance Benchmarking**: Track processing times, memory usage, and identify bottlenecks for optimization.\n\n6. **Data Quality Metrics**: Calculate data completeness, consistency scores, and identify files needing manual review.\n\n7. **Automated Issue Detection**: Implement checks for common data issues like missing action points, corrupted timestamps, invalid power values, and temperature sensor failures.\n\nThe script should handle all edge cases gracefully, provide progress indicators for long-running operations, and create both machine-readable (JSON) and human-readable (HTML) output formats. Include command-line options for selective processing, verbose output, and report customization.",
         "testStrategy": "1. Prepare test environment by placing 20+ diverse real CSV files in `tests/fixtures/real_data/` directory\n2. Run the validation script: `python scripts/validate_real_data_comprehensive.py`\n3. Verify all files are processed without script crashes\n4. Review generated reports in `validation_reports/` directory for completeness\n5. Validate JSON report structure matches expected schema\n6. Check HTML report renders correctly with all sections present\n7. Verify error categorization is accurate and actionable\n8. Test selective processing with `--filter` and `--limit` options\n9. Measure processing performance and memory usage\n10. Confirm all identified issues have specific fix recommendations\n11. Run script multiple times to ensure consistent results\n12. Validate that fixed issues no longer appear in subsequent runs\n13. Test with various file sizes and corruption scenarios\n14. Verify progress indicators work correctly for long operations",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           9,
           10
         ],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Implement Interactive Power Timeline Visualization",
+        "description": "Create Plotly-based interactive charts showing power consumption over time with key thresholds and action markers using the existing visualization module structure",
+        "details": "Implement src/visualization/plotter.py with create_power_timeline() function that takes raw_data, metrics, and metadata from Phase 1 orchestrator. Generate time-series plot with actual power vs time, add vertical line at action time (t=0), add horizontal band entry zone (faded), add horizontal setpoint zone (faded), configure interactive hover tooltips. Also implement figure_to_html() to convert Plotly figure to self-contained HTML div using plotly.offline.plot() with no CDN dependencies. Follow existing project structure with proper error handling and logging.",
+        "testStrategy": "Unit tests for create_power_timeline() with sample data, verify band/setpoint zones render correctly, test figure_to_html() produces valid HTML with no external links, visual inspection tests saving output to tests/output/, parametrized tests with different step directions (UP/DOWN/MINIMAL)",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement core time-series plotting function",
+            "description": "Create the core create_power_timeline() function in src/visualization/plotter.py that generates basic time-series plot with power vs time data using Plotly",
+            "dependencies": [],
+            "details": "Implement create_power_timeline() function that accepts raw_data, metrics, and metadata parameters. Create basic Plotly time-series plot with x-axis as time and y-axis as power consumption. Set up proper axis labels, title, and basic plot configuration. Handle data preprocessing to ensure proper time format and power values. Include error handling for malformed input data and logging for debugging.",
+            "status": "done",
+            "testStrategy": "Unit tests with sample data to verify basic plot creation, test error handling with invalid inputs, verify plot object structure and basic properties"
+          },
+          {
+            "id": 2,
+            "title": "Add interactive features and zone overlays",
+            "description": "Implement vertical action line marker and horizontal zone bands (entry zone, setpoint zone) with interactive hover tooltips",
+            "dependencies": [
+              1
+            ],
+            "details": "Add vertical line at action time (t=0) using plotly.graph_objects.Scatter with mode='lines'. Implement horizontal bands for entry zone and setpoint zone using shapes with faded colors and transparency. Configure interactive hover tooltips to show detailed information about power values, timestamps, and zone information. Add proper styling and colors for different plot elements to ensure visual clarity.",
+            "status": "done",
+            "testStrategy": "Visual tests to verify zone rendering, test hover functionality manually, parametrized tests with different step directions (UP/DOWN/MINIMAL), verify vertical line positioning at t=0"
+          },
+          {
+            "id": 3,
+            "title": "Implement HTML conversion with offline capabilities",
+            "description": "Create figure_to_html() function that converts Plotly figures to self-contained HTML divs without external CDN dependencies",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement figure_to_html() function using plotly.offline.plot() with output_type='div' and include_plotlyjs=True to embed all JavaScript libraries. Ensure generated HTML has no external dependencies and can be embedded in larger documents. Configure proper div container with unique IDs to avoid conflicts. Add options for customizing div attributes and handling multiple plots in same document.",
+            "status": "done",
+            "testStrategy": "Test HTML generation produces valid HTML with no external links, verify single-file portability, test embedding in larger HTML documents, validate JavaScript inclusion and functionality"
+          },
+          {
+            "id": 4,
+            "title": "Testing and validation with comprehensive sample data",
+            "description": "Create comprehensive test suite with sample data validation, visual inspection tests, and integration with existing test framework",
+            "dependencies": [
+              3
+            ],
+            "details": "Create unit tests for all plotting functions using sample data from existing test fixtures. Implement visual inspection tests that save output to tests/output/ directory for manual verification. Add parametrized tests covering different step directions and edge cases. Integrate with existing pytest framework and ensure >90% code coverage. Test error handling scenarios and validate proper logging output.",
+            "status": "done",
+            "testStrategy": "Execute pytest -v for all new tests, generate coverage report with pytest --cov=src/visualization, visual inspection of saved HTML outputs, integration tests with Phase 1 orchestrator data"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Implement LLM Analysis Integration with Claude API",
+        "description": "Create Claude API integration for generating narrative analysis of test behavior using raw CSV data, building on existing analysis module structure",
+        "details": "Implement src/analysis/prompt_template.py with ANALYSIS_PROMPT_TEMPLATE hardcoded string containing placeholders for step_direction and power_range. Create src/analysis/claude_client.py with format_csv_for_llm() to convert raw_data to compact CSV string (~13,500 tokens), build_prompt() to inject test context (UP-STEP vs DOWN-STEP, power levels), and get_analysis() using anthropic>=0.34.0 package with claude-sonnet-4-20250514 model. Include 60-second timeout, token usage tracking, and error handling. Create .env template for ANTHROPIC_API_KEY management with clear setup instructions.",
+        "testStrategy": "Mock API responses for unit tests, one integration test with real API call (marked as integration), verify prompt template injection works correctly, test CSV formatting stays within token limits, verify analysis quality through manual review, ensure no metrics data leakage in prompts",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Prompt Template Design and Management System",
+            "description": "Create the prompt template system with hardcoded ANALYSIS_PROMPT_TEMPLATE string containing placeholders for step_direction and power_range variables",
+            "dependencies": [],
+            "details": "Implement src/analysis/prompt_template.py with ANALYSIS_PROMPT_TEMPLATE as a hardcoded string containing placeholders like {step_direction} and {power_range}. The template should be designed to generate narrative analysis of test behavior using CSV data. Include validation functions to ensure all required placeholders are present and properly formatted. Design the template to work with UP-STEP vs DOWN-STEP scenarios and different power level ranges.",
+            "status": "pending",
+            "testStrategy": "Unit tests for template validation, placeholder detection, and template formatting with sample variables. Test with different step directions and power ranges to ensure proper placeholder substitution."
+          },
+          {
+            "id": 2,
+            "title": "Create CSV Data Formatting for LLM Token Optimization",
+            "description": "Implement CSV data formatting function to convert raw_data to compact CSV string optimized for ~13,500 token consumption by LLM",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement format_csv_for_llm() function in src/analysis/claude_client.py that takes raw DataFrame and converts it to a compact CSV string representation. Optimize for token efficiency by removing unnecessary whitespace, using abbreviated column names where appropriate, and ensuring the output stays within the ~13,500 token limit. Include data validation to ensure no critical information is lost during formatting.",
+            "status": "pending",
+            "testStrategy": "Unit tests for CSV formatting with sample data, token counting validation to ensure output stays within limits, data integrity tests to verify no information loss, and edge case testing with large datasets."
+          },
+          {
+            "id": 3,
+            "title": "Implement Claude API Client with Error Handling and Timeout",
+            "description": "Create the core Claude API client implementation with proper error handling, timeout management, and token usage tracking using anthropic package",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement claude_client.py with build_prompt() function to inject test context (UP-STEP vs DOWN-STEP, power levels) into the template, and get_analysis() function using anthropic>=0.34.0 package with claude-sonnet-4-20250514 model. Include 60-second timeout, comprehensive error handling for network issues, API rate limits, and invalid responses. Add token usage tracking and logging for monitoring API consumption.",
+            "status": "pending",
+            "testStrategy": "Unit tests with mocked API responses, error handling tests for various failure scenarios (timeout, network error, invalid API key), token usage tracking verification, and integration test with real API call (marked as integration test)."
+          },
+          {
+            "id": 4,
+            "title": "Create Environment Configuration and API Key Management",
+            "description": "Implement environment configuration system for ANTHROPIC_API_KEY management with clear setup instructions and validation",
+            "dependencies": [],
+            "details": "Create .env template file with ANTHROPIC_API_KEY placeholder and comprehensive setup instructions. Implement configuration loading in the Claude client with proper validation to ensure API key is present and properly formatted. Include clear error messages for missing or invalid API keys, and provide documentation on how to obtain and configure the API key securely.",
+            "status": "pending",
+            "testStrategy": "Unit tests for configuration loading with valid/invalid API keys, environment variable validation, and documentation completeness verification. Test error messages for missing configuration scenarios."
+          },
+          {
+            "id": 5,
+            "title": "Implement Comprehensive Testing with Mock and Real API Integration",
+            "description": "Create complete test suite covering both mocked API responses and real API integration tests with proper test categorization",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Implement comprehensive test suite in tests/test_analysis/ covering all components. Create unit tests with mocked API responses for reliable testing, and separate integration tests with real API calls (properly marked as integration). Verify prompt template injection works correctly, test CSV formatting stays within token limits, ensure analysis quality through manual review samples, and verify no sensitive metrics data leakage in prompts sent to API.",
+            "status": "pending",
+            "testStrategy": "Execute pytest with mock and integration test separation, verify >90% code coverage for analysis module, manual review of generated analysis samples for quality assessment, and security audit of prompts to ensure no sensitive data exposure."
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Implement HTML Report Generation and Assembly",
+        "description": "Create HTML report generation system that formats metrics into professional reports with embedded CSS and responsive design, using existing reporting module structure",
+        "details": "Implement src/reporting/metrics_formatter.py with format_metrics_table() to convert metrics dict to structured HTML table grouped by category (Basic, Time-Based, Anomaly) with proper formatting for numeric values and detailed lists. Create src/reporting/html_generator.py with generate_html_report() that assembles complete HTML document using embedded CSS (no Bootstrap/Tailwind), responsive layout, fixed section order (Header → Metadata → Analysis → Metrics → Chart). Implement src/reporting/file_exporter.py with save_report() to create output directories and save with proper filename format (report_r3_39_2025-08-27.html) using UTF-8 encoding.",
+        "testStrategy": "Unit tests for format_metrics_table() with all 10 metrics, verify detailed lists render correctly, test HTML generation produces valid HTML5, test across Chrome/Firefox/Safari, verify single-file portability with no external dependencies, test file export with proper directory creation and filename generation",
+        "priority": "medium",
+        "dependencies": [
+          12,
+          13
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Metrics Formatter with HTML Table Generation",
+            "description": "Create metrics_formatter.py module to convert metrics dictionaries into structured HTML tables with proper categorization and formatting",
+            "dependencies": [],
+            "details": "Implement src/reporting/metrics_formatter.py with format_metrics_table() function that takes metrics dict and converts to HTML table. Group metrics by category (Basic, Time-Based, Anomaly) with proper section headers. Format numeric values with appropriate precision and units. Handle detailed lists (like spike_details) with nested table structures. Include proper HTML table structure with thead/tbody elements and CSS classes for styling.",
+            "status": "pending",
+            "testStrategy": "Unit tests for format_metrics_table() with all 10 metrics types, verify correct HTML table structure, test numeric formatting precision, validate detailed lists render as nested structures, test with edge cases like missing metrics"
+          },
+          {
+            "id": 2,
+            "title": "Create HTML Document Generator with Embedded CSS",
+            "description": "Implement HTML generator module that assembles complete HTML documents with embedded responsive CSS and fixed section ordering",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement src/reporting/html_generator.py with generate_html_report() function that creates complete HTML5 document. Include embedded CSS (no external dependencies) with responsive design for mobile/desktop. Fixed section order: Header with report title and timestamp, Metadata section with file info, Analysis section with Claude-generated insights, Metrics section with formatted tables, Chart section with embedded Plotly visualization. Use semantic HTML5 elements and ensure cross-browser compatibility.",
+            "status": "pending",
+            "testStrategy": "Unit tests for generate_html_report() producing valid HTML5, verify embedded CSS has no external dependencies, test responsive design across viewport sizes, validate section ordering is fixed, test HTML structure with W3C validator, cross-browser compatibility testing"
+          },
+          {
+            "id": 3,
+            "title": "Implement File Export with Directory Management",
+            "description": "Create file exporter module that handles output directory creation and saves HTML reports with proper filename formatting",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement src/reporting/file_exporter.py with save_report() function that creates output directories if they don't exist, generates proper filenames in format report_r{run}_{step}_{timestamp}.html, saves HTML content with UTF-8 encoding, handles file permissions and disk space errors. Include methods for batch export and cleanup of old reports. Ensure single-file portability with all assets embedded.",
+            "status": "pending",
+            "testStrategy": "Unit tests for save_report() with directory creation, test filename format generation with various inputs, verify UTF-8 encoding preservation, test error handling for disk full/permission denied, validate single-file portability by moving exported files"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Implement End-to-End Report Pipeline Orchestration",
+        "description": "Create comprehensive pipeline orchestration that coordinates Phase 1 metrics calculation with Phase 2 report generation, integrating all components into a single workflow",
+        "details": "Implement src/pipeline/report_pipeline.py with ReportPipeline class containing generate_report(filepath, output_dir) method that orchestrates: 1) MetricOrchestrator.process_file() from Phase 1, 2) Power timeline visualization, 3) Claude API analysis generation, 4) HTML report assembly, 5) File export with proper error handling. Add generate_batch() method for processing multiple CSV files in sequence. Include comprehensive error handling for each pipeline stage with clear error messages, logging throughout the process, and example usage documentation. Integrate with existing project structure and maintain compatibility with Phase 1 components.",
+        "testStrategy": "End-to-end tests with real CSV files from Phase 1 validation set, error handling tests simulating failures at each stage (bad CSV, API error, disk full), batch processing test with 10+ files, integration tests verifying proper component coordination, performance testing ensuring <30 second completion time",
+        "priority": "medium",
+        "dependencies": [
+          12,
+          13,
+          14
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design and implement ReportPipeline class initialization and core structure",
+            "description": "Create the foundational ReportPipeline class in src/pipeline/report_pipeline.py with proper initialization, configuration management, and core architecture setup",
+            "dependencies": [],
+            "details": "Implement ReportPipeline class with __init__ method accepting configuration parameters (output directory, logging level, API credentials). Set up internal state management for tracking pipeline progress, initialize logger with proper formatting, create directory structure validation, and establish error tracking mechanisms. Include configuration validation and sensible defaults for all parameters.",
+            "status": "pending",
+            "testStrategy": "Unit tests for class initialization with various configurations, test directory creation and validation, verify logger setup and configuration parsing"
+          },
+          {
+            "id": 2,
+            "title": "Implement single file report generation workflow integration",
+            "description": "Create the generate_report() method that orchestrates Phase 1 metrics calculation, visualization generation, Claude API analysis, and HTML assembly for a single CSV file",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement generate_report(filepath, output_dir) method that: 1) Validates input CSV file, 2) Calls MetricOrchestrator.process_file() from Phase 1, 3) Generates power timeline visualization using Task 12 components, 4) Calls Claude API for analysis generation using Task 13 components, 5) Assembles HTML report using Task 14 components, 6) Exports final report with proper naming convention. Include progress tracking and intermediate result validation.",
+            "status": "pending",
+            "testStrategy": "Integration tests with real CSV files from Phase 1 validation set, mock tests for each pipeline stage, verify proper data flow between components and final report generation"
+          },
+          {
+            "id": 3,
+            "title": "Implement batch processing for multiple CSV files",
+            "description": "Create generate_batch() method for processing multiple CSV files in sequence with progress tracking and batch-level error handling",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement generate_batch(input_directory, output_directory) method that discovers CSV files, processes each using generate_report(), tracks overall progress with progress bar or logging, handles per-file failures without stopping batch processing, generates batch summary report with success/failure counts, and provides detailed error reporting for failed files. Include parallel processing option for performance optimization.",
+            "status": "pending",
+            "testStrategy": "Batch processing tests with 10+ CSV files including some invalid files, verify proper error isolation, test progress tracking and summary report generation, performance testing with large batches"
+          },
+          {
+            "id": 4,
+            "title": "Implement comprehensive error handling and logging throughout pipeline",
+            "description": "Add robust error handling, recovery mechanisms, and detailed logging at each pipeline stage with clear error messages and troubleshooting guidance",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Implement try-catch blocks around each pipeline stage with specific error types (FileNotFoundError, APIError, ValidationError), create custom exception classes for pipeline-specific errors, add detailed logging with timestamps and context information, implement retry logic for transient failures (API timeouts), create error recovery strategies where possible, and provide clear error messages with troubleshooting suggestions for users.",
+            "status": "pending",
+            "testStrategy": "Error handling tests simulating failures at each stage (bad CSV, API errors, disk full, permission issues), verify proper error propagation and logging, test retry mechanisms with mock failures"
+          },
+          {
+            "id": 5,
+            "title": "Create integration tests with Phase 1 components and end-to-end validation",
+            "description": "Develop comprehensive integration tests that verify proper coordination between pipeline and all Phase 1 components with real data scenarios",
+            "dependencies": [
+              4
+            ],
+            "details": "Create integration test suite that uses real CSV files from Phase 1 validation set, tests complete pipeline flow from CSV input to final HTML report, verifies MetricOrchestrator integration produces expected metrics, validates visualization component integration, tests Claude API integration with proper error handling, and includes end-to-end validation comparing pipeline output against expected results from Phase 1 standalone processing.",
+            "status": "pending",
+            "testStrategy": "End-to-end tests with complete data flow validation, integration tests verifying component coordination, regression tests ensuring Phase 1 compatibility, performance tests ensuring pipeline completion under 30 seconds per file"
+          },
+          {
+            "id": 6,
+            "title": "Implement performance optimization and create comprehensive documentation",
+            "description": "Optimize pipeline performance for large files and batch processing, and create detailed usage documentation with examples",
+            "dependencies": [
+              5
+            ],
+            "details": "Profile pipeline performance to identify bottlenecks, implement caching for repeated operations, optimize memory usage for large CSV files, add parallel processing options for batch operations, implement progress indicators for long-running operations. Create comprehensive documentation including API reference, usage examples, configuration guide, troubleshooting section, and integration examples with existing project components.",
+            "status": "pending",
+            "testStrategy": "Performance benchmarking with large files and batches, memory usage profiling, parallel processing validation, documentation accuracy testing through fresh environment setup and example execution"
+          }
+        ]
       }
     ],
     "metadata": {
-      "version": "1.0.0",
-      "lastModified": "2025-11-08T11:48:08.226Z",
-      "taskCount": 10,
-      "completedCount": 0,
-      "tags": [
-        "master"
-      ],
       "created": "2025-11-08T11:52:16.561Z",
-      "description": "Tasks for master context",
-      "updated": "2025-11-09T15:30:13.489Z"
+      "updated": "2025-11-10T20:03:40.652Z",
+      "description": "Tasks for master context"
     }
   }
 }

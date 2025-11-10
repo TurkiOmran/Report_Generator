@@ -1,0 +1,43 @@
+# Task ID: 13
+# Title: Implement LLM Analysis Integration with Claude API
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Create Claude API integration for generating narrative analysis of test behavior using raw CSV data, building on existing analysis module structure
+# Details:
+Implement src/analysis/prompt_template.py with ANALYSIS_PROMPT_TEMPLATE hardcoded string containing placeholders for step_direction and power_range. Create src/analysis/claude_client.py with format_csv_for_llm() to convert raw_data to compact CSV string (~13,500 tokens), build_prompt() to inject test context (UP-STEP vs DOWN-STEP, power levels), and get_analysis() using anthropic>=0.34.0 package with claude-sonnet-4-20250514 model. Include 60-second timeout, token usage tracking, and error handling. Create .env template for ANTHROPIC_API_KEY management with clear setup instructions.
+
+# Test Strategy:
+Mock API responses for unit tests, one integration test with real API call (marked as integration), verify prompt template injection works correctly, test CSV formatting stays within token limits, verify analysis quality through manual review, ensure no metrics data leakage in prompts
+
+# Subtasks:
+## 1. Implement Prompt Template Design and Management System [pending]
+### Dependencies: None
+### Description: Create the prompt template system with hardcoded ANALYSIS_PROMPT_TEMPLATE string containing placeholders for step_direction and power_range variables
+### Details:
+Implement src/analysis/prompt_template.py with ANALYSIS_PROMPT_TEMPLATE as a hardcoded string containing placeholders like {step_direction} and {power_range}. The template should be designed to generate narrative analysis of test behavior using CSV data. Include validation functions to ensure all required placeholders are present and properly formatted. Design the template to work with UP-STEP vs DOWN-STEP scenarios and different power level ranges.
+
+## 2. Create CSV Data Formatting for LLM Token Optimization [pending]
+### Dependencies: 13.1
+### Description: Implement CSV data formatting function to convert raw_data to compact CSV string optimized for ~13,500 token consumption by LLM
+### Details:
+Implement format_csv_for_llm() function in src/analysis/claude_client.py that takes raw DataFrame and converts it to a compact CSV string representation. Optimize for token efficiency by removing unnecessary whitespace, using abbreviated column names where appropriate, and ensuring the output stays within the ~13,500 token limit. Include data validation to ensure no critical information is lost during formatting.
+
+## 3. Implement Claude API Client with Error Handling and Timeout [pending]
+### Dependencies: 13.1, 13.2
+### Description: Create the core Claude API client implementation with proper error handling, timeout management, and token usage tracking using anthropic package
+### Details:
+Implement claude_client.py with build_prompt() function to inject test context (UP-STEP vs DOWN-STEP, power levels) into the template, and get_analysis() function using anthropic>=0.34.0 package with claude-sonnet-4-20250514 model. Include 60-second timeout, comprehensive error handling for network issues, API rate limits, and invalid responses. Add token usage tracking and logging for monitoring API consumption.
+
+## 4. Create Environment Configuration and API Key Management [pending]
+### Dependencies: None
+### Description: Implement environment configuration system for ANTHROPIC_API_KEY management with clear setup instructions and validation
+### Details:
+Create .env template file with ANTHROPIC_API_KEY placeholder and comprehensive setup instructions. Implement configuration loading in the Claude client with proper validation to ensure API key is present and properly formatted. Include clear error messages for missing or invalid API keys, and provide documentation on how to obtain and configure the API key securely.
+
+## 5. Implement Comprehensive Testing with Mock and Real API Integration [pending]
+### Dependencies: 13.1, 13.2, 13.3, 13.4
+### Description: Create complete test suite covering both mocked API responses and real API integration tests with proper test categorization
+### Details:
+Implement comprehensive test suite in tests/test_analysis/ covering all components. Create unit tests with mocked API responses for reliable testing, and separate integration tests with real API calls (properly marked as integration). Verify prompt template injection works correctly, test CSV formatting stays within token limits, ensure analysis quality through manual review samples, and verify no sensitive metrics data leakage in prompts sent to API.
+

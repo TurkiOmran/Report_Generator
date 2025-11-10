@@ -1,0 +1,240 @@
+# Task ID: 8
+# Title: Implement Spike Detection and Overshoot/Undershoot Metrics
+# Status: done
+# Dependencies: 7
+# Priority: medium
+# Description: Complete the anomaly detection metrics with spike detection for temporary power excursions and overshoot/undershoot analysis for transient response.
+# Details:
+Continue in `src/metrics/anomaly_metrics.py`:
+```python
+    def calculate_spikes(self, start_power_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Metric 9: Detect temporary power excursions."""
+        baseline = start_power_result.get('median')
+        
+        if baseline is None:
+            return {
+                'spike_count': 0,
+                'spikes': [],
+                'notes': 'No baseline power available'
+            }
+        
+        # Define spike thresholds (10% above/below baseline)
+        upper_threshold = baseline * 1.10
+        lower_threshold = baseline * 0.90
+        
+        # Use sliding window (3 samples)
+        window_size = 3
+        post_action = self.df[self.df['seconds'] >= 0].copy()
+        valid_data = post_action.dropna(subset=['summary_wattage'])
+        
+        spikes = []
+        
+        if len(valid_data) < window_size:
+            return {
+                'spike_count': 0,
+                'spikes': [],
+                'notes': 'Insufficient data for spike detection'
+            }
+        
+        # Sliding window detection
+        for i in range(len(valid_data) - window_size + 1):
+            window = valid_data.iloc[i:i+window_size]
+            window_mean = window['summary_wattage'].mean()
+            
+            # Check if middle point is a spike
+            mid_idx = window.index[1]
+            mid_power = window.loc[mid_idx, 'summary_wattage']
+            mid_time = window.loc[mid_idx, 'seconds']
+            
+            # Spike detection logic
+            if mid_power > upper_threshold or mid_power < lower_threshold:
+                # Verify it's temporary (surrounding values are closer to baseline)
+                first_power = window.iloc[0]['summary_wattage']
+                last_power = window.iloc[2]['summary_wattage']
+                
+                first_closer = abs(first_power - baseline) < abs(mid_power - baseline)
+                last_closer = abs(last_power - baseline) < abs(mid_power - baseline)
+                
+                if first_closer and last_closer:
+                    spike_type = 'up' if mid_power > baseline else 'down'
+                    spikes.append({
+                        'time': round(mid_time, 2),
+                        'power': round(mid_power, 2),
+                        'deviation': round(mid_power - baseline, 2),
+                        'deviation_pct': round((mid_power - baseline) / baseline * 100, 2),
+                        'type': spike_type
+                    })
+        
+        # Remove duplicate spikes (within 2 seconds)
+        filtered_spikes = []
+        for spike in spikes:
+            if not filtered_spikes or spike['time'] - filtered_spikes[-1]['time'] > 2:
+                filtered_spikes.append(spike)
+        
+        return {
+            'spike_count': len(filtered_spikes),
+            'spikes': filtered_spikes[:10],  # Return up to 10 spikes
+            'baseline_power': round(baseline, 2),
+            'thresholds': {
+                'upper': round(upper_threshold, 2),
+                'lower': round(lower_threshold, 2)
+            },
+            'notes': f'{len(filtered_spikes)} spikes detected'
+        }
+    
+    def calculate_overshoot_undershoot(self, target_power_result: Dict[str, Any], 
+                                       step_direction_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Metric 10: Analyze transient response characteristics."""
+        target = target_power_result.get('after')
+        direction = step_direction_result.get('direction')
+        
+        if target is None or direction == 'UNKNOWN':
+            return {
+                'detected': False,
+                'type': None,
+                'magnitude': None,
+                'time': None,
+                'duration': None,
+                'notes': 'Missing required data'
+            }
+        
+        # Dynamic thresholds (4% or 200W, whichever is larger)
+        pct_threshold = target * 0.04
+        abs_threshold = 200
+        threshold = max(pct_threshold, abs_threshold)
+        
+        post_action = self.df[self.df['seconds'] >= 0].copy()
+        valid_data = post_action.dropna(subset=['summary_wattage'])
+        
+        if valid_data.empty:
+            return {
+                'detected': False,
+                'type': None,
+                'magnitude': None,
+                'time': None,
+                'duration': None,
+                'notes': 'No valid post-action data'
+            }
+        
+        # Detect based on step direction
+        if direction == 'UP-STEP':
+            # Look for overshoot (power > target + threshold)
+            overshoot_mask = valid_data['summary_wattage'] > (target + threshold)
+            if overshoot_mask.any():
+                # Find maximum overshoot
+                max_idx = valid_data.loc[overshoot_mask, 'summary_wattage'].idxmax()
+                max_power = valid_data.loc[max_idx, 'summary_wattage']
+                max_time = valid_data.loc[max_idx, 'seconds']
+                
+                # Calculate duration (how long above threshold)
+                duration = 0
+                for idx in valid_data.index:
+                    if valid_data.loc[idx, 'summary_wattage'] > (target + threshold):
+                        duration += 1
+                    elif idx > max_idx:
+                        break
+                
+                return {
+                    'detected': True,
+                    'type': 'overshoot',
+                    'magnitude': round(max_power - target, 2),
+                    'magnitude_pct': round((max_power - target) / target * 100, 2),
+                    'time': round(max_time, 2),
+                    'duration': duration,
+                    'peak_power': round(max_power, 2),
+                    'threshold': round(target + threshold, 2),
+                    'notes': f'Overshoot of {max_power - target:.0f}W at {max_time:.1f}s'
+                }
+        
+        elif direction == 'DOWN-STEP':
+            # Look for undershoot (power < target - threshold)
+            undershoot_mask = valid_data['summary_wattage'] < (target - threshold)
+            if undershoot_mask.any():
+                # Find minimum undershoot
+                min_idx = valid_data.loc[undershoot_mask, 'summary_wattage'].idxmin()
+                min_power = valid_data.loc[min_idx, 'summary_wattage']
+                min_time = valid_data.loc[min_idx, 'seconds']
+                
+                # Calculate duration
+                duration = 0
+                for idx in valid_data.index:
+                    if valid_data.loc[idx, 'summary_wattage'] < (target - threshold):
+                        duration += 1
+                    elif idx > min_idx:
+                        break
+                
+                return {
+                    'detected': True,
+                    'type': 'undershoot',
+                    'magnitude': round(target - min_power, 2),
+                    'magnitude_pct': round((target - min_power) / target * 100, 2),
+                    'time': round(min_time, 2),
+                    'duration': duration,
+                    'trough_power': round(min_power, 2),
+                    'threshold': round(target - threshold, 2),
+                    'notes': f'Undershoot of {target - min_power:.0f}W at {min_time:.1f}s'
+                }
+        
+        return {
+            'detected': False,
+            'type': None,
+            'magnitude': None,
+            'time': None,
+            'duration': None,
+            'notes': f'No transient detected for {direction}'
+        }
+```
+
+# Test Strategy:
+Complete anomaly metric tests:
+1. Test spike detection with clear up/down spikes
+2. Test spike filtering (removing duplicates)
+3. Test spike detection with noisy data
+4. Test overshoot detection for UP-STEP
+5. Test undershoot detection for DOWN-STEP
+6. Test no transient detection for MINIMAL-STEP
+7. Test magnitude and duration calculations
+
+# Subtasks:
+## 1. Implement rolling 5-second window spike detection with 15% threshold [done]
+### Dependencies: None
+### Description: Replace the existing 3-sample sliding window with a proper 5-second rolling window implementation using 15% deviation threshold for spike detection.
+### Details:
+Modify the calculate_spikes method to use a 5-second time-based window instead of 3-sample window. Change threshold from 10% to 15% (upper_threshold = baseline * 1.15, lower_threshold = baseline * 0.85). Implement proper time-based windowing by filtering data within 5-second intervals and calculating rolling statistics.
+
+## 2. Build overlapping spike prevention with processed time tracking [done]
+### Dependencies: 8.1
+### Description: Implement sophisticated spike deduplication logic to prevent detection of overlapping spikes by tracking processed time intervals.
+### Details:
+Create a processed_intervals list to track already-processed time ranges. Before adding a spike, check if its time window overlaps with any existing processed interval. Extend the current 2-second gap logic to use a configurable window (default 3 seconds) and maintain state of processed regions to avoid duplicate detections in overlapping windows.
+
+## 3. Implement overshoot detection for UP-STEP transitions with dynamic thresholds [done]
+### Dependencies: None
+### Description: Enhance the overshoot detection logic for UP-STEP transitions with improved dynamic threshold calculation and peak detection.
+### Details:
+Refine the overshoot detection in calculate_overshoot_undershoot method. Implement adaptive thresholds based on target power magnitude (minimum 4% or 200W, whichever is larger). Add peak detection algorithm to find the maximum overshoot point and improve the duration calculation to measure time above threshold more accurately.
+
+## 4. Build undershoot detection for DOWN-STEP transitions with magnitude analysis [done]
+### Dependencies: None
+### Description: Implement robust undershoot detection for DOWN-STEP transitions with precise magnitude calculation and trough identification.
+### Details:
+Complete the undershoot detection logic in calculate_overshoot_undershoot method. Implement trough detection to find minimum power points during undershoot events. Add magnitude analysis with both absolute (watts) and relative (percentage) calculations. Improve duration measurement to track how long power remains below the threshold.
+
+## 5. Create duration and magnitude calculations for transient events [done]
+### Dependencies: 8.3, 8.4
+### Description: Implement comprehensive duration tracking and magnitude analysis for both overshoot and undershoot transient events.
+### Details:
+Create helper methods for calculating transient event durations by tracking consecutive samples above/below thresholds. Implement magnitude calculations in both absolute watts and percentage terms. Add time-to-peak and recovery time measurements. Include statistical measures like peak/trough power, average deviation during event, and settling time.
+
+## 6. Implement direction-specific logic based on step classification [done]
+### Dependencies: 8.3, 8.4
+### Description: Create robust direction-specific analysis logic that properly handles UP-STEP, DOWN-STEP, and MINIMAL-STEP classifications.
+### Details:
+Enhance the direction-based logic to handle edge cases where step direction is ambiguous or MINIMAL-STEP. Add logic to skip transient analysis for MINIMAL-STEP cases. Implement direction validation to ensure overshoot detection only runs for UP-STEP and undershoot only for DOWN-STEP. Add cross-validation between step direction results and detected transients.
+
+## 7. Add comprehensive validation and edge case handling for all detection modes [done]
+### Dependencies: 8.1, 8.2, 8.5, 8.6
+### Description: Implement robust error handling, input validation, and edge case management for all spike and transient detection functions.
+### Details:
+Add comprehensive input validation for all methods including null/empty data checks, invalid baseline values, and malformed target power results. Implement edge case handling for insufficient data, all-NaN segments, extreme outliers, and boundary conditions. Add detailed logging and error messages with specific guidance for each failure mode. Include data quality checks and warnings for suspicious patterns.
+

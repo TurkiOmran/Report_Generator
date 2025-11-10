@@ -1,0 +1,175 @@
+# Task ID: 9
+# Title: Create Metric Orchestrator and Dependency Management
+# Status: done
+# Dependencies: 8
+# Priority: high
+# Description: Build a central orchestrator that manages metric calculation order based on dependencies and aggregates all results.
+# Details:
+Create `src/metrics/orchestrator.py`:
+```python
+import pandas as pd
+from typing import Dict, Any, List
+import logging
+from datetime import datetime
+
+from src.data_processing.ingestion import DataIngestion
+from src.data_processing.preprocessing import DataPreprocessor
+from src.metrics.basic_metrics import BasicMetrics
+from src.metrics.time_metrics import TimeMetrics
+from src.metrics.anomaly_metrics import AnomalyMetrics
+
+logger = logging.getLogger(__name__)
+
+class MetricOrchestrator:
+    """Orchestrates metric calculation with dependency management."""
+    
+    def __init__(self):
+        self.results = {}
+        self.metadata = {}
+        self.execution_order = [
+            'preprocessing',
+            'start_power',
+            'target_power',
+            'step_direction',
+            'temperature_ranges',
+            'band_entry',
+            'setpoint_hit',
+            'stable_plateau',
+            'sharp_drops',
+            'spikes',
+            'overshoot_undershoot'
+        ]
+    
+    def process_file(self, filepath: str) -> Dict[str, Any]:
+        """Process CSV file and calculate all metrics."""
+        start_time = datetime.now()
+        
+        try:
+            # Data ingestion
+            logger.info(f"Loading file: {filepath}")
+            ingestion = DataIngestion()
+            df = ingestion.load_csv(filepath)
+            
+            # Preprocessing
+            logger.info("Preprocessing data")
+            preprocessor = DataPreprocessor(df)
+            processed_df, preprocessing_metadata = preprocessor.preprocess()
+            
+            self.metadata.update(preprocessing_metadata)
+            self.metadata['filename'] = filepath
+            self.metadata['total_rows'] = len(processed_df)
+            
+            # Initialize metric calculators
+            basic_metrics = BasicMetrics(processed_df, self.metadata)
+            time_metrics = TimeMetrics(processed_df, self.metadata)
+            anomaly_metrics = AnomalyMetrics(processed_df, self.metadata)
+            
+            # Calculate metrics in dependency order
+            logger.info("Calculating metrics")
+            
+            # Basic metrics
+            self.results['start_power'] = basic_metrics.calculate_start_power()
+            self.results['target_power'] = basic_metrics.calculate_target_power()
+            
+            # Step direction (depends on target_power)
+            self.results['step_direction'] = basic_metrics.calculate_step_direction(
+                self.results['target_power']
+            )
+            
+            # Temperature (independent)
+            self.results['temperature_ranges'] = basic_metrics.calculate_temperature_ranges()
+            
+            # Time-based metrics (depend on target_power)
+            self.results['band_entry'] = time_metrics.calculate_band_entry(
+                self.results['target_power']
+            )
+            self.results['setpoint_hit'] = time_metrics.calculate_setpoint_hit(
+                self.results['target_power']
+            )
+            self.results['stable_plateau'] = time_metrics.calculate_stable_plateau(
+                self.results['target_power']
+            )
+            
+            # Anomaly metrics
+            self.results['sharp_drops'] = anomaly_metrics.calculate_sharp_drops()
+            self.results['spikes'] = anomaly_metrics.calculate_spikes(
+                self.results['start_power']
+            )
+            self.results['overshoot_undershoot'] = anomaly_metrics.calculate_overshoot_undershoot(
+                self.results['target_power'],
+                self.results['step_direction']
+            )
+            
+            # Calculate processing time
+            end_time = datetime.now()
+            processing_time = (end_time - start_time).total_seconds()
+            
+            # Compile final results
+            return {
+                'success': True,
+                'metrics': self.results,
+                'metadata': {
+                    **self.metadata,
+                    'processing_time_seconds': round(processing_time, 3),
+                    'timestamp': datetime.now().isoformat()
+                },
+                'raw_data': processed_df.to_dict('records')  # For visualization
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing file: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e),
+                'error_type': type(e).__name__,
+                'metadata': self.metadata
+            }
+    
+    def validate_results(self) -> Dict[str, List[str]]:
+        """Validate calculated metrics for consistency."""
+        warnings = []
+        errors = []
+        
+        # Check if all expected metrics were calculated
+        expected_metrics = self.execution_order[1:]  # Exclude preprocessing
+        for metric in expected_metrics:
+            if metric not in self.results:
+                errors.append(f"Missing metric: {metric}")
+        
+        # Validate metric relationships
+        if 'start_power' in self.results and 'target_power' in self.results:
+            start = self.results['start_power'].get('median')
+            target_before = self.results['target_power'].get('before')
+            
+            if start and target_before and abs(start - target_before) > 100:
+                warnings.append(
+                    f"Large discrepancy between start power ({start:.0f}W) "
+                    f"and target before ({target_before:.0f}W)"
+                )
+        
+        # Check time metric consistency
+        if 'band_entry' in self.results and 'setpoint_hit' in self.results:
+            band_time = self.results['band_entry'].get('time_seconds')
+            setpoint_time = self.results['setpoint_hit'].get('time_seconds')
+            
+            if band_time and setpoint_time and setpoint_time < band_time:
+                warnings.append(
+                    f"Setpoint hit ({setpoint_time}s) before band entry ({band_time}s)"
+                )
+        
+        return {
+            'warnings': warnings,
+            'errors': errors,
+            'valid': len(errors) == 0
+        }
+```
+
+# Test Strategy:
+Create integration tests in `tests/test_metrics/test_orchestrator.py`:
+1. Test full pipeline with clean data
+2. Test dependency resolution
+3. Test error handling for bad files
+4. Test result validation
+5. Test processing time measurement
+6. Create sample CSV files representing different test scenarios
+7. Verify all metrics are calculated in correct order

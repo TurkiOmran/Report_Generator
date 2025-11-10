@@ -1,0 +1,31 @@
+# Task ID: 14
+# Title: Implement HTML Report Generation and Assembly
+# Status: pending
+# Dependencies: 12, 13
+# Priority: medium
+# Description: Create HTML report generation system that formats metrics into professional reports with embedded CSS and responsive design, using existing reporting module structure
+# Details:
+Implement src/reporting/metrics_formatter.py with format_metrics_table() to convert metrics dict to structured HTML table grouped by category (Basic, Time-Based, Anomaly) with proper formatting for numeric values and detailed lists. Create src/reporting/html_generator.py with generate_html_report() that assembles complete HTML document using embedded CSS (no Bootstrap/Tailwind), responsive layout, fixed section order (Header → Metadata → Analysis → Metrics → Chart). Implement src/reporting/file_exporter.py with save_report() to create output directories and save with proper filename format (report_r3_39_2025-08-27.html) using UTF-8 encoding.
+
+# Test Strategy:
+Unit tests for format_metrics_table() with all 10 metrics, verify detailed lists render correctly, test HTML generation produces valid HTML5, test across Chrome/Firefox/Safari, verify single-file portability with no external dependencies, test file export with proper directory creation and filename generation
+
+# Subtasks:
+## 1. Implement Metrics Formatter with HTML Table Generation [pending]
+### Dependencies: None
+### Description: Create metrics_formatter.py module to convert metrics dictionaries into structured HTML tables with proper categorization and formatting
+### Details:
+Implement src/reporting/metrics_formatter.py with format_metrics_table() function that takes metrics dict and converts to HTML table. Group metrics by category (Basic, Time-Based, Anomaly) with proper section headers. Format numeric values with appropriate precision and units. Handle detailed lists (like spike_details) with nested table structures. Include proper HTML table structure with thead/tbody elements and CSS classes for styling.
+
+## 2. Create HTML Document Generator with Embedded CSS [pending]
+### Dependencies: 14.1
+### Description: Implement HTML generator module that assembles complete HTML documents with embedded responsive CSS and fixed section ordering
+### Details:
+Implement src/reporting/html_generator.py with generate_html_report() function that creates complete HTML5 document. Include embedded CSS (no external dependencies) with responsive design for mobile/desktop. Fixed section order: Header with report title and timestamp, Metadata section with file info, Analysis section with Claude-generated insights, Metrics section with formatted tables, Chart section with embedded Plotly visualization. Use semantic HTML5 elements and ensure cross-browser compatibility.
+
+## 3. Implement File Export with Directory Management [pending]
+### Dependencies: 14.2
+### Description: Create file exporter module that handles output directory creation and saves HTML reports with proper filename formatting
+### Details:
+Implement src/reporting/file_exporter.py with save_report() function that creates output directories if they don't exist, generates proper filenames in format report_r{run}_{step}_{timestamp}.html, saves HTML content with UTF-8 encoding, handles file permissions and disk space errors. Include methods for batch export and cleanup of old reports. Ensure single-file portability with all assets embedded.
+

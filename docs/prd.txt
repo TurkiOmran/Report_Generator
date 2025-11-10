@@ -1,0 +1,432 @@
+# Power Profile Report Generator - Refactoring Project PRD
+
+**Project:** Miner Power Profile Report Generator System Refactoring
+**Type:** Backend Python Application with Future Web Interface
+**Complexity:** High
+**Status:** New Development
+
+## Executive Summary
+
+Complete refactoring of an existing monolithic LLM-based report generation system that analyzes miner power profile test data. The current system uses a single LLM call to calculate metrics, generate analysis, and format HTML reports, resulting in inconsistent metrics and slow processing. This refactoring separates deterministic metric computation (Python functions) from interpretive analysis (LLM generation) to achieve reliability, speed, and maintainability.
+
+## Problem Statement
+
+The current report generation system has critical flaws:
+- Metrics vary between runs due to LLM recalculation (non-deterministic)
+- Processing takes 1-2 minutes per report (inefficient)
+- Unable to audit or validate metric calculations separately
+- LLM wastes tokens on mathematical calculations instead of insights
+- No testing framework for metric validation
+- Cannot guarantee consistency for compliance or quality assurance
+
+## Solution Overview
+
+Build a modular three-phase system:
+- Phase 1: Python-based deterministic metric calculation engine
+- Phase 2: HTML report generation with LLM analysis integration  
+- Phase 3: Web deployment with React frontend and FastAPI backend
+
+The refactored architecture separates concerns: Python handles all mathematical computations, Claude API provides narrative analysis, and Plotly generates interactive visualizations. This ensures 100% metric consistency while maintaining rich analytical insights.
+
+## Technical Architecture
+
+### Core Components
+
+1. **Data Processing Module**
+   - CSV ingestion with pandas
+   - Data validation using pydantic models
+   - Preprocessing pipeline (sorting, action point detection, quality checks)
+   - NaN and outage handling strategies
+
+2. **Metric Calculation Engine**
+   - 10 deterministic metrics divided into three categories
+   - Basic Metrics: Start Power, Target Power, Step Direction, Temperature Ranges
+   - Time-Based Metrics: Band Entry, Setpoint Hit, Stable Plateau
+   - Anomaly Detection: Sharp Drops, Spikes, Overshoot/Undershoot
+   - Dependency-aware execution order
+
+3. **LLM Analysis Module**
+   - Claude API integration (anthropic Python package)
+   - Prompt engineering for descriptive analysis
+   - Pre-computed metrics as input (no recalculation)
+   - Factual constraint enforcement
+
+4. **Visualization Engine**
+   - Plotly interactive charts
+   - Time-series power consumption graphs
+   - Event annotations and markers
+
+5. **Report Generation System**
+   - HTML template with f-string formatting
+   - Fixed section structure for consistency
+   - Responsive CSS design
+   - Optional file export capability
+
+### Technology Stack
+
+- Python 3.13.7
+- pandas (data processing)
+- numpy (numerical operations)
+- plotly (visualization)
+- anthropic (Claude API)
+- pydantic (validation)
+- python-dotenv (configuration)
+- pytest (testing)
+
+Future additions (Phase 3):
+- FastAPI (backend API)
+- React (frontend)
+- Authentication system
+
+## Detailed Requirements
+
+### Phase 1: Metric Implementation (Current Focus)
+
+#### Data Preprocessing Requirements
+
+The system must preprocess CSV files containing miner test data with the following columns:
+- miner.seconds: Time in seconds (negative before action, positive after)
+- miner.mode.power: Target power setting in watts
+- miner.summary.wattage: Actual measured power (may contain NaN)
+- miner.temp.hash_board_max: Hash board temperature in Celsius
+- miner.psu.temp_max: PSU temperature in Celsius
+- miner.outage: Boolean indicating offline status
+
+Preprocessing must:
+- Validate all required columns exist
+- Check data types and handle type conversions
+- Sort data chronologically
+- Identify action time (t=0 crossing point)
+- Log data quality warnings
+- Handle edge cases gracefully
+
+#### Metric 1: Start Power
+Calculate baseline power consumption before action:
+- Extract pre-action data (t < 0)
+- Filter valid (non-NaN) wattage values
+- Compute median of valid values
+- Compare with last value before action
+- Flag significant differences (>50W)
+- Return dictionary with median, last_value, difference, and notes
+
+#### Metric 2: Target Power  
+Extract target power settings for transition analysis:
+- Get miner.mode.power immediately before action (last negative time)
+- Get miner.mode.power immediately after action (first non-negative time)
+- Calculate change (delta)
+- Validate target remains constant post-action
+- Warn if no change detected
+- Return before, after, and change values
+
+#### Metric 3: Step Direction
+Classify test type based on power transition:
+- Calculate absolute and percentage changes
+- Apply classification thresholds (2% or 50W)
+- Determine UP-STEP, DOWN-STEP, or MINIMAL-STEP
+- Include both delta watts and percentage
+- Handle edge cases (zero change, NaN values)
+
+#### Metric 4: Temperature Ranges
+Analyze thermal behavior during test:
+- Calculate pre-action temperature statistics
+- Calculate post-action temperature statistics
+- Compare hash board and PSU temperatures
+- Identify maximum temperatures and timing
+- Return comprehensive temperature metrics
+
+#### Metric 5: Band Entry
+Measure time to reach target power band (±5%):
+- Define target band boundaries
+- Search for first entry into band
+- Implement consecutive sample validation
+- Handle never-reached scenarios
+- Calculate precise entry time
+
+#### Metric 6: Setpoint Hit
+Measure time to reach exact target power:
+- Define proximity threshold (±30W)
+- Search for first occurrence
+- Validate achievement
+- Handle never-reached cases
+- Return time and achievement status
+
+#### Metric 7: Stable Plateau
+Measure duration at stable target power:
+- Define stability criteria (±2% for 30+ seconds)
+- Find longest stable segment
+- Calculate duration and timing
+- Handle no-stability scenarios
+- Return stability metrics
+
+#### Metric 8: Sharp Drops
+Detect power outages and significant drops:
+- Identify drops exceeding thresholds (500W in 3 seconds)
+- Track outage periods
+- Calculate drop characteristics
+- Count occurrences
+- Return comprehensive drop analysis
+
+#### Metric 9: Spikes
+Detect temporary power excursions:
+- Define spike thresholds (10% above/below baseline)
+- Implement sliding window detection
+- Track spike characteristics
+- Filter noise from real spikes
+- Return spike count and details
+
+#### Metric 10: Overshoot/Undershoot
+Analyze transient response characteristics:
+- Calculate dynamic thresholds (4% or 200W)
+- Detect overshoot for UP-STEP tests
+- Detect undershoot for DOWN-STEP tests
+- Measure magnitude and duration
+- Return detailed transient analysis
+
+### Phase 2: Report Generation Pipeline
+
+#### HTML Report Structure
+Generate reports with fixed section order:
+1. Header with title and test identification
+2. Metadata section (date, model, notes)
+3. Descriptive analysis from Claude
+4. Deterministic metrics table
+5. Interactive Plotly visualization
+
+#### LLM Prompt Engineering
+Create effective prompts that:
+- Receive pre-computed metrics dictionary
+- Receive raw CSV data for context
+- Generate descriptive narrative only
+- Focus on behavioral patterns and insights
+- Avoid recalculating any metrics
+- Maintain factual accuracy
+
+#### API Integration
+Implement robust Claude API usage:
+- Environment-based API key management
+- Error handling and retry logic
+- Response validation
+- Token usage optimization
+- Timeout handling
+
+### Phase 3: Web Deployment (Future)
+
+#### Backend API Development
+- FastAPI REST endpoints
+- File upload handling
+- Asynchronous processing
+- Result caching
+- Database integration
+
+#### Frontend Development  
+- React-based user interface
+- File upload component
+- Report viewing interface
+- Historical report browser
+- Export functionality
+
+#### Security Implementation
+- User authentication system
+- API key protection
+- Rate limiting
+- Input sanitization
+- Secure file handling
+
+## Testing Strategy
+
+### Unit Testing Requirements
+Every metric function must have tests covering:
+- Normal operation with clean data
+- Edge cases (empty data, all NaN)
+- Boundary conditions
+- Error handling
+- Performance benchmarks
+
+### Integration Testing
+End-to-end tests validating:
+- CSV ingestion pipeline
+- Metric calculation chain
+- LLM integration
+- HTML generation
+- File export
+
+### Validation Approach
+- Manual review of metrics on sample data
+- Comparison with expected ranges
+- Visual verification against plots
+- Cross-validation with historical reports
+
+## Implementation Priorities
+
+### Critical Path (Must Complete First)
+1. Project setup and structure
+2. Data preprocessing module
+3. Basic metrics (1-4)
+4. Metric dependency framework
+5. Initial testing framework
+
+### High Priority
+6. Time-based metrics (5-7)
+7. Anomaly detection metrics (8-10)
+8. Comprehensive unit tests
+9. LLM prompt development
+10. Basic HTML generation
+
+### Medium Priority
+11. Plotly visualization
+12. CSS styling
+13. Integration testing
+14. Error handling enhancement
+15. Documentation
+
+### Low Priority
+16. Performance optimization
+17. Advanced visualizations
+18. Export formats
+19. Batch processing
+20. Web deployment preparation
+
+## Success Metrics
+
+### Performance Goals
+- Metric calculation: <1 second
+- LLM analysis: 10-20 seconds
+- Total processing: <30 seconds
+- Memory usage: <500MB
+
+### Quality Goals
+- Metric consistency: 100% identical across runs
+- Test coverage: >90%
+- Zero critical bugs
+- Clear error messages
+- Professional report appearance
+
+### User Experience Goals
+- Simple CSV upload process
+- Clear progress indication
+- Informative error handling
+- Interactive visualizations
+- Fast response times
+
+## Constraints and Considerations
+
+### Technical Constraints
+- Python 3.13.7 compatibility required
+- Must handle files with ~700 rows
+- Must process within memory limits
+- API rate limits must be respected
+
+### Data Constraints
+- CSV format is fixed
+- Column names cannot change
+- Some data quality issues expected
+- NaN values must be handled
+
+### Business Constraints
+- Reports used for operational decisions
+- Consistency critical for compliance
+- Professional appearance required
+- Must maintain historical compatibility
+
+## Risk Mitigation
+
+### Technical Risks
+- LLM API failures: Implement retry logic and caching
+- Large file processing: Add streaming capabilities if needed
+- Metric calculation errors: Comprehensive testing and validation
+- Performance degradation: Profile and optimize bottlenecks
+
+### Data Risks
+- Corrupted CSV files: Robust validation and error messages
+- Missing required data: Graceful degradation where possible
+- Unexpected formats: Flexible parsing with clear errors
+
+### Integration Risks
+- API changes: Version lock dependencies
+- Breaking changes: Comprehensive test suite
+- Deployment issues: Containerization strategy
+
+## Project Deliverables
+
+### Phase 1 Deliverables
+1. Complete metric calculation module with all 10 metrics
+2. Data preprocessing and validation system
+3. Comprehensive unit test suite
+4. Basic documentation and examples
+5. Performance benchmarks
+
+### Phase 2 Deliverables
+1. LLM integration with Claude API
+2. HTML report generation system
+3. Interactive Plotly visualizations
+4. Integration test suite
+5. User documentation
+
+### Phase 3 Deliverables
+1. FastAPI backend application
+2. React frontend interface
+3. Authentication system
+4. Deployment configuration
+5. Operations documentation
+
+## Development Guidelines
+
+### Code Organization
+Structure code in logical modules:
+- src/data_processing/ for ingestion and preprocessing
+- src/metrics/ for calculation functions
+- src/analysis/ for LLM integration
+- src/visualization/ for chart generation
+- src/reporting/ for HTML generation
+- tests/ mirroring src structure
+
+### Coding Standards
+- Follow PEP 8 style guide
+- Use type hints throughout
+- Write docstrings for all functions
+- Implement error handling consistently
+- Keep functions focused and testable
+
+### Documentation Requirements
+- README with setup instructions
+- API documentation for all modules
+- Example usage for each metric
+- Troubleshooting guide
+- Architecture diagrams
+
+### Version Control
+- Use git for version control
+- Meaningful commit messages
+- Feature branches for development
+- Pull requests for review
+- Tagged releases for milestones
+
+## Appendix: Metric Dependencies
+
+The metrics have specific dependencies that must be respected:
+
+```
+Preprocessing (required for all)
+  ├─→ Metric 1: Start Power
+  ├─→ Metric 2: Target Power  
+  ├─→ Metric 4: Temperature Ranges
+  ├─→ Metric 3: Step Direction (requires 1, 2)
+  ├─→ Metric 5: Band Entry (requires 1, 2, 3 optional)
+  ├─→ Metric 6: Setpoint Hit (requires 2)
+  ├─→ Metric 7: Stable Plateau (requires 2)
+  ├─→ Metric 8: Sharp Drops
+  ├─→ Metric 9: Spikes
+  └─→ Metric 10: Overshoot/Undershoot (requires 2, 3)
+```
+
+## Next Steps
+
+1. Initialize project structure with required directories
+2. Set up virtual environment and install dependencies
+3. Implement data preprocessing module
+4. Begin metric implementation in dependency order
+5. Create test files with sample data
+6. Develop unit tests alongside metrics
+7. Document progress and issues
+
+This PRD provides comprehensive requirements for the complete refactoring project, with clear priorities, dependencies, and success criteria. The modular approach enables incremental development while maintaining focus on the critical path to a working system.

@@ -1,0 +1,49 @@
+# Task ID: 15
+# Title: Implement End-to-End Report Pipeline Orchestration
+# Status: pending
+# Dependencies: 12, 13, 14
+# Priority: medium
+# Description: Create comprehensive pipeline orchestration that coordinates Phase 1 metrics calculation with Phase 2 report generation, integrating all components into a single workflow
+# Details:
+Implement src/pipeline/report_pipeline.py with ReportPipeline class containing generate_report(filepath, output_dir) method that orchestrates: 1) MetricOrchestrator.process_file() from Phase 1, 2) Power timeline visualization, 3) Claude API analysis generation, 4) HTML report assembly, 5) File export with proper error handling. Add generate_batch() method for processing multiple CSV files in sequence. Include comprehensive error handling for each pipeline stage with clear error messages, logging throughout the process, and example usage documentation. Integrate with existing project structure and maintain compatibility with Phase 1 components.
+
+# Test Strategy:
+End-to-end tests with real CSV files from Phase 1 validation set, error handling tests simulating failures at each stage (bad CSV, API error, disk full), batch processing test with 10+ files, integration tests verifying proper component coordination, performance testing ensuring <30 second completion time
+
+# Subtasks:
+## 1. Design and implement ReportPipeline class initialization and core structure [pending]
+### Dependencies: None
+### Description: Create the foundational ReportPipeline class in src/pipeline/report_pipeline.py with proper initialization, configuration management, and core architecture setup
+### Details:
+Implement ReportPipeline class with __init__ method accepting configuration parameters (output directory, logging level, API credentials). Set up internal state management for tracking pipeline progress, initialize logger with proper formatting, create directory structure validation, and establish error tracking mechanisms. Include configuration validation and sensible defaults for all parameters.
+
+## 2. Implement single file report generation workflow integration [pending]
+### Dependencies: 15.1
+### Description: Create the generate_report() method that orchestrates Phase 1 metrics calculation, visualization generation, Claude API analysis, and HTML assembly for a single CSV file
+### Details:
+Implement generate_report(filepath, output_dir) method that: 1) Validates input CSV file, 2) Calls MetricOrchestrator.process_file() from Phase 1, 3) Generates power timeline visualization using Task 12 components, 4) Calls Claude API for analysis generation using Task 13 components, 5) Assembles HTML report using Task 14 components, 6) Exports final report with proper naming convention. Include progress tracking and intermediate result validation.
+
+## 3. Implement batch processing for multiple CSV files [pending]
+### Dependencies: 15.2
+### Description: Create generate_batch() method for processing multiple CSV files in sequence with progress tracking and batch-level error handling
+### Details:
+Implement generate_batch(input_directory, output_directory) method that discovers CSV files, processes each using generate_report(), tracks overall progress with progress bar or logging, handles per-file failures without stopping batch processing, generates batch summary report with success/failure counts, and provides detailed error reporting for failed files. Include parallel processing option for performance optimization.
+
+## 4. Implement comprehensive error handling and logging throughout pipeline [pending]
+### Dependencies: 15.1, 15.2, 15.3
+### Description: Add robust error handling, recovery mechanisms, and detailed logging at each pipeline stage with clear error messages and troubleshooting guidance
+### Details:
+Implement try-catch blocks around each pipeline stage with specific error types (FileNotFoundError, APIError, ValidationError), create custom exception classes for pipeline-specific errors, add detailed logging with timestamps and context information, implement retry logic for transient failures (API timeouts), create error recovery strategies where possible, and provide clear error messages with troubleshooting suggestions for users.
+
+## 5. Create integration tests with Phase 1 components and end-to-end validation [pending]
+### Dependencies: 15.4
+### Description: Develop comprehensive integration tests that verify proper coordination between pipeline and all Phase 1 components with real data scenarios
+### Details:
+Create integration test suite that uses real CSV files from Phase 1 validation set, tests complete pipeline flow from CSV input to final HTML report, verifies MetricOrchestrator integration produces expected metrics, validates visualization component integration, tests Claude API integration with proper error handling, and includes end-to-end validation comparing pipeline output against expected results from Phase 1 standalone processing.
+
+## 6. Implement performance optimization and create comprehensive documentation [pending]
+### Dependencies: 15.5
+### Description: Optimize pipeline performance for large files and batch processing, and create detailed usage documentation with examples
+### Details:
+Profile pipeline performance to identify bottlenecks, implement caching for repeated operations, optimize memory usage for large CSV files, add parallel processing options for batch operations, implement progress indicators for long-running operations. Create comprehensive documentation including API reference, usage examples, configuration guide, troubleshooting section, and integration examples with existing project components.
+

@@ -35,3 +35,11 @@ Thumbs.db
 !tests/fixtures/*.csv
 reports/
 output/
+
+# Validation and test outputs (keep outside tests/)
+validate_*.py
+visualize_*.py
+VALIDATION_REPORT.md
+validation_batch.log
+power_plots/
+power_profile_viewer.html

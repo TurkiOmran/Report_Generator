@@ -1,0 +1,108 @@
+# Task ID: 3
+# Title: Implement Data Preprocessing Pipeline
+# Status: done
+# Dependencies: 2
+# Priority: high
+# Description: Create preprocessing functions to sort data chronologically, identify action time (t=0), handle NaN values, and prepare data for metric calculations.
+# Details:
+In `src/data_processing/preprocessing.py`:
+```python
+import pandas as pd
+import numpy as np
+from typing import Dict, Tuple, Any
+import logging
+
+logger = logging.getLogger(__name__)
+
+class DataPreprocessor:
+    def __init__(self, df: pd.DataFrame):
+        self.df = df.copy()
+        self.action_index = None
+        self.metadata = {}
+    
+    def preprocess(self) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Main preprocessing pipeline."""
+        self._sort_by_time()
+        self._identify_action_point()
+        self._check_data_quality()
+        self._handle_nan_values()
+        return self.df, self.metadata
+    
+    def _sort_by_time(self) -> None:
+        """Sort data chronologically by seconds column."""
+        self.df = self.df.sort_values('seconds').reset_index(drop=True)
+        logger.info(f"Sorted {len(self.df)} rows by time")
+    
+    def _identify_action_point(self) -> None:
+        """Find the index where seconds crosses from negative to non-negative."""
+        # Find transition point
+        negative_mask = self.df['seconds'] < 0
+        if not negative_mask.any():
+            logger.warning("No pre-action data found (all times >= 0)")
+            self.action_index = 0
+        elif negative_mask.all():
+            logger.warning("No post-action data found (all times < 0)")
+            self.action_index = len(self.df) - 1
+        else:
+            # Find first non-negative index
+            self.action_index = (~negative_mask).idxmax()
+        
+        self.metadata['action_index'] = self.action_index
+        self.metadata['action_time'] = self.df.loc[self.action_index, 'seconds']
+    
+    def _check_data_quality(self) -> None:
+        """Assess data quality and log warnings."""
+        # Check for NaN values
+        nan_counts = self.df.isnull().sum()
+        for col, count in nan_counts.items():
+            if count > 0:
+                pct = (count / len(self.df)) * 100
+                logger.warning(f"Column '{col}' has {count} NaN values ({pct:.1f}%)")
+                self.metadata[f'{col}_nan_count'] = count
+        
+        # Check for data gaps
+        time_diffs = self.df['seconds'].diff()
+        max_gap = time_diffs.max()
+        if max_gap > 10:  # More than 10 second gap
+            logger.warning(f"Large time gap detected: {max_gap:.1f} seconds")
+            self.metadata['max_time_gap'] = max_gap
+    
+    def _handle_nan_values(self) -> None:
+        """Strategy for handling NaN values in wattage."""
+        # For wattage, we'll keep NaN as-is but flag segments
+        wattage_nan_mask = self.df['summary_wattage'].isna()
+        if wattage_nan_mask.any():
+            # Find continuous NaN segments
+            nan_segments = []
+            in_segment = False
+            start_idx = None
+            
+            for idx, is_nan in enumerate(wattage_nan_mask):
+                if is_nan and not in_segment:
+                    start_idx = idx
+                    in_segment = True
+                elif not is_nan and in_segment:
+                    nan_segments.append((start_idx, idx-1))
+                    in_segment = False
+            
+            if in_segment:
+                nan_segments.append((start_idx, len(self.df)-1))
+            
+            self.metadata['wattage_nan_segments'] = nan_segments
+    
+    def get_pre_action_data(self) -> pd.DataFrame:
+        """Return data before action point."""
+        return self.df[self.df['seconds'] < 0].copy()
+    
+    def get_post_action_data(self) -> pd.DataFrame:
+        """Return data at and after action point."""
+        return self.df[self.df['seconds'] >= 0].copy()
+```
+
+# Test Strategy:
+Create comprehensive tests in `tests/test_data_processing/test_preprocessing.py`:
+1. Test sorting with unsorted data
+2. Test action point identification with various scenarios (no pre-data, no post-data, normal)
+3. Test NaN handling and segment identification
+4. Test data quality checks and metadata generation
+5. Create fixtures with edge cases like all NaN values, single row data, large time gaps

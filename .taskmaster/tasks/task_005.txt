@@ -1,0 +1,129 @@
+# Task ID: 5
+# Title: Implement Step Direction and Temperature Metrics
+# Status: done
+# Dependencies: 4
+# Priority: high
+# Description: Create step direction classification metric and temperature range analysis for thermal behavior during tests.
+# Details:
+Continue in `src/metrics/basic_metrics.py`:
+```python
+    def calculate_step_direction(self, target_power_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Metric 3: Classify test type based on power transition."""
+        # Requires target power metric results
+        if target_power_result['change'] is None:
+            return {
+                'direction': 'UNKNOWN',
+                'delta_watts': None,
+                'delta_percentage': None,
+                'notes': 'Cannot determine - missing target power data'
+            }
+        
+        change = target_power_result['change']
+        before = target_power_result['before']
+        
+        # Calculate percentage change
+        if before and before != 0:
+            pct_change = (change / before) * 100
+        else:
+            pct_change = 0
+        
+        # Apply classification thresholds
+        abs_change = abs(change)
+        abs_pct = abs(pct_change)
+        
+        if abs_change < 50 and abs_pct < 2:
+            direction = 'MINIMAL-STEP'
+        elif change > 0:
+            direction = 'UP-STEP'
+        else:
+            direction = 'DOWN-STEP'
+        
+        return {
+            'direction': direction,
+            'delta_watts': round(change, 2),
+            'delta_percentage': round(pct_change, 2),
+            'notes': f'{direction} detected with {abs_change:.0f}W change ({abs_pct:.1f}%)'
+        }
+    
+    def calculate_temperature_ranges(self) -> Dict[str, Any]:
+        """Metric 4: Analyze thermal behavior during test."""
+        pre_action = self.df[self.df['seconds'] < 0]
+        post_action = self.df[self.df['seconds'] >= 0]
+        
+        result = {
+            'pre_action': {},
+            'post_action': {},
+            'max_temperatures': {}
+        }
+        
+        # Analyze pre-action temperatures
+        if not pre_action.empty:
+            hash_temps_pre = pre_action['temp_hash_board_max'].dropna()
+            psu_temps_pre = pre_action['psu_temp_max'].dropna()
+            
+            if not hash_temps_pre.empty:
+                result['pre_action']['hash_board'] = {
+                    'min': round(hash_temps_pre.min(), 1),
+                    'max': round(hash_temps_pre.max(), 1),
+                    'mean': round(hash_temps_pre.mean(), 1),
+                    'std': round(hash_temps_pre.std(), 1)
+                }
+            
+            if not psu_temps_pre.empty:
+                result['pre_action']['psu'] = {
+                    'min': round(psu_temps_pre.min(), 1),
+                    'max': round(psu_temps_pre.max(), 1),
+                    'mean': round(psu_temps_pre.mean(), 1),
+                    'std': round(psu_temps_pre.std(), 1)
+                }
+        
+        # Analyze post-action temperatures
+        if not post_action.empty:
+            hash_temps_post = post_action['temp_hash_board_max'].dropna()
+            psu_temps_post = post_action['psu_temp_max'].dropna()
+            
+            if not hash_temps_post.empty:
+                result['post_action']['hash_board'] = {
+                    'min': round(hash_temps_post.min(), 1),
+                    'max': round(hash_temps_post.max(), 1),
+                    'mean': round(hash_temps_post.mean(), 1),
+                    'std': round(hash_temps_post.std(), 1)
+                }
+                
+                # Find max temperature timing
+                max_idx = post_action['temp_hash_board_max'].idxmax()
+                if pd.notna(max_idx):
+                    max_time = post_action.loc[max_idx, 'seconds']
+                    result['max_temperatures']['hash_board_time'] = round(max_time, 1)
+            
+            if not psu_temps_post.empty:
+                result['post_action']['psu'] = {
+                    'min': round(psu_temps_post.min(), 1),
+                    'max': round(psu_temps_post.max(), 1),
+                    'mean': round(psu_temps_post.mean(), 1),
+                    'std': round(psu_temps_post.std(), 1)
+                }
+                
+                # Find max PSU temperature timing
+                max_idx = post_action['psu_temp_max'].idxmax()
+                if pd.notna(max_idx):
+                    max_time = post_action.loc[max_idx, 'seconds']
+                    result['max_temperatures']['psu_time'] = round(max_time, 1)
+        
+        # Add temperature rise analysis
+        if result['pre_action'].get('hash_board') and result['post_action'].get('hash_board'):
+            temp_rise = result['post_action']['hash_board']['max'] - result['pre_action']['hash_board']['mean']
+            result['temperature_rise'] = round(temp_rise, 1)
+        
+        return result
+```
+
+# Test Strategy:
+Extend tests in `tests/test_metrics/test_basic_metrics.py`:
+1. Test step direction for UP-STEP (>2% or >50W increase)
+2. Test step direction for DOWN-STEP (>2% or >50W decrease)
+3. Test step direction for MINIMAL-STEP (<2% and <50W)
+4. Test temperature ranges with complete data
+5. Test temperature ranges with missing temperature data
+6. Test temperature rise calculations
+7. Test max temperature timing identification

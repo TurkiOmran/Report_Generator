@@ -1,0 +1,119 @@
+# Task ID: 2
+# Title: Implement Data Ingestion and Validation Module
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Create the data processing module with CSV ingestion capabilities using pandas and data validation using pydantic models. Handle required columns, data types, and implement robust error handling.
+# Details:
+In `src/data_processing/validation.py`:
+```python
+from pydantic import BaseModel, validator
+from typing import Optional
+import pandas as pd
+
+class MinerDataSchema(BaseModel):
+    class Config:
+        arbitrary_types_allowed = True
+    
+    seconds: pd.Series
+    mode_power: pd.Series
+    summary_wattage: pd.Series
+    temp_hash_board_max: pd.Series
+    psu_temp_max: pd.Series
+    outage: pd.Series
+    
+    @validator('seconds')
+    def validate_seconds(cls, v):
+        if v.dtype not in ['float64', 'int64']:
+            raise ValueError('seconds must be numeric')
+        return v
+```
+
+In `src/data_processing/ingestion.py`:
+```python
+import pandas as pd
+import logging
+from pathlib import Path
+from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
+
+class DataIngestion:
+    REQUIRED_COLUMNS = [
+        'miner.seconds',
+        'miner.mode.power',
+        'miner.summary.wattage',
+        'miner.temp.hash_board_max',
+        'miner.psu.temp_max',
+        'miner.outage'
+    ]
+    
+    def load_csv(self, filepath: Path) -> pd.DataFrame:
+        """Load and validate CSV file."""
+        try:
+            df = pd.read_csv(filepath)
+            self._validate_columns(df)
+            df = self._standardize_column_names(df)
+            df = self._convert_types(df)
+            return df
+        except Exception as e:
+            logger.error(f"Failed to load CSV: {e}")
+            raise
+    
+    def _validate_columns(self, df: pd.DataFrame) -> None:
+        missing = set(self.REQUIRED_COLUMNS) - set(df.columns)
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+    
+    def _standardize_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
+        rename_map = {
+            'miner.seconds': 'seconds',
+            'miner.mode.power': 'mode_power',
+            'miner.summary.wattage': 'summary_wattage',
+            'miner.temp.hash_board_max': 'temp_hash_board_max',
+            'miner.psu.temp_max': 'psu_temp_max',
+            'miner.outage': 'outage'
+        }
+        return df.rename(columns=rename_map)
+    
+    def _convert_types(self, df: pd.DataFrame) -> pd.DataFrame:
+        df['seconds'] = pd.to_numeric(df['seconds'], errors='coerce')
+        df['mode_power'] = pd.to_numeric(df['mode_power'], errors='coerce')
+        df['summary_wattage'] = pd.to_numeric(df['summary_wattage'], errors='coerce')
+        df['outage'] = df['outage'].astype(bool)
+        return df
+```
+
+# Test Strategy:
+Create unit tests in `tests/test_data_processing/test_ingestion.py` that verify:
+1. Successful loading of valid CSV files
+2. Proper error handling for missing columns
+3. Correct type conversions
+4. Handling of malformed data
+5. Create fixture CSV files with various edge cases (missing columns, wrong types, empty files)
+
+# Subtasks:
+## 1. Implement CSV loading with pandas and column validation [done]
+### Dependencies: None
+### Description: Complete the CSV loading functionality in DataIngestion class with robust column validation and proper error handling for missing required columns.
+### Details:
+Enhance the existing load_csv method in src/data_processing/ingestion.py to properly validate all required columns (miner.seconds, miner.mode.power, etc.), implement comprehensive error messages for missing columns, and add logging for successful/failed loads. The _validate_columns method should provide clear feedback about which specific columns are missing.
+
+## 2. Create Pydantic data validation models with proper type checking [done]
+### Dependencies: 2.1
+### Description: Complete the MinerDataSchema Pydantic model with comprehensive validators for all data fields and proper type checking for pandas Series data.
+### Details:
+Finish implementing the MinerDataSchema in src/data_processing/validation.py by adding validators for all fields (mode_power, summary_wattage, temp_hash_board_max, psu_temp_max, outage). Each validator should check data types, handle null values appropriately, and provide meaningful error messages. Add validation for numeric ranges and boolean conversion for outage field.
+
+## 3. Build robust error handling for malformed data and missing columns [done]
+### Dependencies: 2.2
+### Description: Implement comprehensive error handling throughout the data ingestion pipeline to gracefully handle malformed CSV files, corrupted data, and various edge cases.
+### Details:
+Add try-catch blocks around critical operations in both ingestion.py and validation.py. Implement custom exception classes for different error types (MissingColumnsError, DataValidationError, FileFormatError). Add detailed logging with appropriate log levels (ERROR, WARNING, INFO) and ensure all exceptions provide actionable error messages to users.
+
+## 4. Implement data type conversion and standardization with comprehensive logging [done]
+### Dependencies: 2.3
+### Description: Complete the data type conversion pipeline with robust handling of edge cases and comprehensive logging throughout the ingestion process.
+### Details:
+Enhance the _convert_types method in DataIngestion to handle edge cases like infinity values, out-of-range numbers, and mixed data types. Add comprehensive logging at each stage of the ingestion process (file loading, column validation, type conversion, standardization). Implement data quality checks and provide summary statistics in logs about successful conversions and any data issues encountered.
+

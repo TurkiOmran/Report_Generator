@@ -1,0 +1,209 @@
+# Task ID: 7
+# Title: Implement Stable Plateau and Anomaly Detection Metrics
+# Status: done
+# Dependencies: 6
+# Priority: medium
+# Description: Create stable plateau duration metric and implement sharp drops detection for power outages and significant drops.
+# Details:
+Continue in `src/metrics/time_metrics.py` and create `src/metrics/anomaly_metrics.py`:
+
+In `time_metrics.py`:
+```python
+    def calculate_stable_plateau(self, target_power_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Metric 7: Measure duration at stable target power."""
+        target = target_power_result.get('after')
+        
+        if target is None:
+            return {
+                'duration_seconds': 0,
+                'start_time': None,
+                'end_time': None,
+                'achieved': False,
+                'notes': 'No target power available'
+            }
+        
+        # Define stability criteria (±2% for 30+ seconds)
+        tolerance = 0.02
+        min_duration = 30
+        lower_bound = target * (1 - tolerance)
+        upper_bound = target * (1 + tolerance)
+        
+        post_action = self.df[self.df['seconds'] >= 0].copy()
+        valid_data = post_action.dropna(subset=['summary_wattage'])
+        
+        if valid_data.empty:
+            return {
+                'duration_seconds': 0,
+                'start_time': None,
+                'end_time': None,
+                'achieved': False,
+                'notes': 'No valid post-action data'
+            }
+        
+        # Find longest stable segment
+        in_range = (valid_data['summary_wattage'] >= lower_bound) & \
+                   (valid_data['summary_wattage'] <= upper_bound)
+        
+        longest_duration = 0
+        best_start = None
+        best_end = None
+        
+        # Scan for continuous segments
+        segment_start = None
+        for i in range(len(valid_data)):
+            idx = valid_data.index[i]
+            
+            if in_range.loc[idx]:
+                if segment_start is None:
+                    segment_start = valid_data.loc[idx, 'seconds']
+            else:
+                if segment_start is not None:
+                    segment_end = valid_data.iloc[i-1]['seconds']
+                    duration = segment_end - segment_start
+                    
+                    if duration > longest_duration:
+                        longest_duration = duration
+                        best_start = segment_start
+                        best_end = segment_end
+                    
+                    segment_start = None
+        
+        # Check if last segment is ongoing
+        if segment_start is not None:
+            segment_end = valid_data.iloc[-1]['seconds']
+            duration = segment_end - segment_start
+            
+            if duration > longest_duration:
+                longest_duration = duration
+                best_start = segment_start
+                best_end = segment_end
+        
+        achieved = longest_duration >= min_duration
+        
+        return {
+            'duration_seconds': round(longest_duration, 2),
+            'start_time': round(best_start, 2) if best_start is not None else None,
+            'end_time': round(best_end, 2) if best_end is not None else None,
+            'achieved': achieved,
+            'notes': f'Stable for {longest_duration:.1f}s' if achieved else f'Max stability: {longest_duration:.1f}s (< {min_duration}s required)',
+            'stability_band': [round(lower_bound, 2), round(upper_bound, 2)]
+        }
+```
+
+In `src/metrics/anomaly_metrics.py`:
+```python
+import pandas as pd
+import numpy as np
+from typing import Dict, Any, List, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
+
+class AnomalyMetrics:
+    def __init__(self, df: pd.DataFrame, metadata: Dict[str, Any]):
+        self.df = df
+        self.metadata = metadata
+    
+    def calculate_sharp_drops(self) -> Dict[str, Any]:
+        """Metric 8: Detect power outages and significant drops."""
+        # Thresholds
+        drop_threshold = 500  # Watts
+        time_window = 3  # seconds
+        
+        # Get post-action data
+        post_action = self.df[self.df['seconds'] >= 0].copy()
+        
+        drops = []
+        outage_periods = []
+        
+        # Detect drops in power
+        for i in range(1, len(post_action)):
+            curr_idx = post_action.index[i]
+            prev_idx = post_action.index[i-1]
+            
+            curr_power = post_action.loc[curr_idx, 'summary_wattage']
+            prev_power = post_action.loc[prev_idx, 'summary_wattage']
+            curr_time = post_action.loc[curr_idx, 'seconds']
+            prev_time = post_action.loc[prev_idx, 'seconds']
+            
+            # Check for outage flag
+            if post_action.loc[curr_idx, 'outage']:
+                if not outage_periods or curr_time - outage_periods[-1][1] > 1:
+                    outage_periods.append([curr_time, curr_time])
+                else:
+                    outage_periods[-1][1] = curr_time
+            
+            # Check for power drop
+            if pd.notna(curr_power) and pd.notna(prev_power):
+                time_diff = curr_time - prev_time
+                if time_diff <= time_window:
+                    power_drop = prev_power - curr_power
+                    if power_drop >= drop_threshold:
+                        drops.append({
+                            'time': round(curr_time, 2),
+                            'magnitude': round(power_drop, 2),
+                            'from_power': round(prev_power, 2),
+                            'to_power': round(curr_power, 2),
+                            'duration': round(time_diff, 2)
+                        })
+        
+        # Calculate total outage time
+        total_outage_time = sum(end - start for start, end in outage_periods)
+        
+        return {
+            'drop_count': len(drops),
+            'drops': drops[:5],  # Return up to 5 most significant
+            'outage_count': len(outage_periods),
+            'total_outage_seconds': round(total_outage_time, 2),
+            'outage_periods': [(round(s, 2), round(e, 2)) for s, e in outage_periods[:5]],
+            'notes': f'{len(drops)} drops detected, {len(outage_periods)} outage periods'
+        }
+```
+
+# Test Strategy:
+Create comprehensive tests:
+1. Test stable plateau with long stable period
+2. Test stable plateau with multiple short periods
+3. Test stable plateau never achieved
+4. Test sharp drops detection with single drop
+5. Test sharp drops with multiple drops
+6. Test outage period detection
+7. Test combined drops and outages
+
+# Subtasks:
+## 1. Implement stable plateau detection with ±20W tolerance and 30-second minimum duration [done]
+### Dependencies: None
+### Description: Create the stable plateau detection algorithm that identifies continuous periods where power remains within ±20W of target for at least 30 seconds.
+### Details:
+Modify the existing calculate_stable_plateau method in time_metrics.py to use ±20W absolute tolerance instead of percentage-based tolerance. Update the algorithm to properly handle continuous segment detection with the new tolerance criteria. Ensure the method returns duration, start/end times, achievement status, and stability band information.
+
+## 2. Build continuous segment analysis with exit reason classification [done]
+### Dependencies: 7.1
+### Description: Enhance segment analysis to classify why plateau periods end and provide detailed exit reason information.
+### Details:
+Add logic to track and classify segment exit reasons (exceeded tolerance, data gap, test end). Implement segment merging for brief interruptions and provide detailed statistics about plateau quality including variance and deviation patterns during stable periods.
+
+## 3. Implement sharp drop detection using rolling 5-second windows and 15% thresholds [done]
+### Dependencies: None
+### Description: Create sharp drop detection algorithm using rolling time windows and percentage-based thresholds for more accurate anomaly detection.
+### Details:
+Replace the existing simple drop detection with a rolling window approach that calculates power changes over 5-second windows. Use 15% threshold for significant drops and implement proper time-based analysis to avoid false positives from normal fluctuations.
+
+## 4. Build overlapping event prevention and time-based deduplication [done]
+### Dependencies: 7.3
+### Description: Implement sophisticated event deduplication to prevent reporting multiple events for the same underlying power anomaly.
+### Details:
+Create logic to merge overlapping or closely spaced events within configurable time windows. Implement event priority scoring to keep the most significant event when multiple events overlap. Add configurable suppression periods after major events to prevent duplicate reporting.
+
+## 5. Create summary statistics and worst-case analysis [done]
+### Dependencies: 7.4
+### Description: Build comprehensive statistical analysis of detected anomalies including worst-case scenarios and trend analysis.
+### Details:
+Implement statistical aggregation of all detected events including maximum drop magnitude, total anomaly time, frequency analysis, and severity classification. Add worst-case analysis that identifies the most significant events and their impact on system stability.
+
+## 6. Add comprehensive validation and edge case handling [done]
+### Dependencies: 7.5
+### Description: Implement robust error handling, input validation, and edge case management for all anomaly detection algorithms.
+### Details:
+Add comprehensive input validation for all detection methods, handle edge cases like empty datasets, all-NaN values, and insufficient data periods. Implement graceful degradation when detection algorithms cannot run and provide meaningful error messages and fallback behaviors.
+

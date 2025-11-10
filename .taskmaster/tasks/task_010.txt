@@ -1,0 +1,226 @@
+# Task ID: 10
+# Title: Implement Comprehensive Testing Framework
+# Status: done
+# Dependencies: 9
+# Priority: high
+# Description: Create a complete testing framework with unit tests for all metrics, integration tests for the orchestrator, and test fixtures with sample data.
+# Details:
+Create test fixtures in `tests/fixtures/`:
+
+`tests/fixtures/sample_data.py`:
+```python
+import pandas as pd
+import numpy as np
+from pathlib import Path
+
+def create_upstep_test_data():
+    """Create sample data for UP-STEP test."""
+    # Pre-action: stable at 2000W
+    pre_times = np.arange(-300, 0, 1)
+    pre_power = np.random.normal(2000, 10, len(pre_times))
+    pre_mode = np.full(len(pre_times), 2000)
+    
+    # Post-action: step to 3000W with overshoot
+    post_times = np.arange(0, 600, 1)
+    post_power = np.zeros(len(post_times))
+    
+    # Transient response
+    for i, t in enumerate(post_times):
+        if t < 10:
+            post_power[i] = 2000 + (3000-2000) * (t/10)
+        elif t < 20:
+            post_power[i] = 3000 + 200 * np.exp(-(t-10)/5)  # Overshoot
+        else:
+            post_power[i] = np.random.normal(3000, 15, 1)[0]
+    
+    post_mode = np.full(len(post_times), 3000)
+    
+    # Combine data
+    df = pd.DataFrame({
+        'miner.seconds': np.concatenate([pre_times, post_times]),
+        'miner.mode.power': np.concatenate([pre_mode, post_mode]),
+        'miner.summary.wattage': np.concatenate([pre_power, post_power]),
+        'miner.temp.hash_board_max': np.random.normal(65, 2, len(pre_times) + len(post_times)),
+        'miner.psu.temp_max': np.random.normal(55, 2, len(pre_times) + len(post_times)),
+        'miner.outage': np.zeros(len(pre_times) + len(post_times), dtype=bool)
+    })
+    
+    return df
+
+def create_downstep_with_drops_data():
+    """Create sample data for DOWN-STEP with power drops."""
+    # Similar structure but with drops
+    df = create_upstep_test_data()
+    df['miner.mode.power'] = df['miner.mode.power'].apply(lambda x: 3000 if x == 2000 else 2000)
+    df['miner.summary.wattage'] = 5000 - df['miner.summary.wattage']  # Invert
+    
+    # Add some drops
+    drop_indices = [350, 450, 550]
+    for idx in drop_indices:
+        if idx < len(df):
+            df.loc[idx:idx+5, 'miner.summary.wattage'] = 0
+            df.loc[idx:idx+5, 'miner.outage'] = True
+    
+    return df
+
+def save_test_fixtures():
+    """Save test CSV files."""
+    fixtures_dir = Path(__file__).parent
+    
+    # Save different test scenarios
+    scenarios = {
+        'upstep_clean.csv': create_upstep_test_data(),
+        'downstep_with_drops.csv': create_downstep_with_drops_data(),
+    }
+    
+    for filename, df in scenarios.items():
+        df.to_csv(fixtures_dir / filename, index=False)
+```
+
+Create `tests/conftest.py` for pytest fixtures:
+```python
+import pytest
+import pandas as pd
+from pathlib import Path
+
+@pytest.fixture
+def sample_upstep_df():
+    """Provide sample UP-STEP dataframe."""
+    from tests.fixtures.sample_data import create_upstep_test_data
+    return create_upstep_test_data()
+
+@pytest.fixture
+def sample_downstep_df():
+    """Provide sample DOWN-STEP dataframe."""
+    from tests.fixtures.sample_data import create_downstep_with_drops_data
+    return create_downstep_with_drops_data()
+
+@pytest.fixture
+def temp_csv_file(tmp_path, sample_upstep_df):
+    """Create temporary CSV file for testing."""
+    csv_path = tmp_path / "test_data.csv"
+    sample_upstep_df.to_csv(csv_path, index=False)
+    return str(csv_path)
+```
+
+Create comprehensive test example `tests/test_metrics/test_basic_metrics.py`:
+```python
+import pytest
+import pandas as pd
+import numpy as np
+from src.metrics.basic_metrics import BasicMetrics
+
+class TestStartPower:
+    def test_normal_calculation(self, sample_upstep_df):
+        """Test start power with normal data."""
+        metrics = BasicMetrics(sample_upstep_df, {'action_index': 300})
+        result = metrics.calculate_start_power()
+        
+        assert result['median'] is not None
+        assert 1990 < result['median'] < 2010  # Should be close to 2000W
+        assert result['achieved'] is True
+        assert 'valid_samples' in result
+    
+    def test_no_pre_action_data(self):
+        """Test when no pre-action data exists."""
+        df = pd.DataFrame({
+            'seconds': [0, 1, 2],
+            'summary_wattage': [1000, 1000, 1000],
+            'mode_power': [1000, 1000, 1000]
+        })
+        metrics = BasicMetrics(df, {'action_index': 0})
+        result = metrics.calculate_start_power()
+        
+        assert result['median'] is None
+        assert result['notes'] == 'No pre-action data available'
+    
+    def test_all_nan_values(self):
+        """Test when all pre-action values are NaN."""
+        df = pd.DataFrame({
+            'seconds': [-3, -2, -1, 0, 1],
+            'summary_wattage': [np.nan, np.nan, np.nan, 1000, 1000],
+            'mode_power': [1000, 1000, 1000, 1000, 1000]
+        })
+        metrics = BasicMetrics(df, {'action_index': 3})
+        result = metrics.calculate_start_power()
+        
+        assert result['median'] is None
+        assert 'All pre-action wattage values are NaN' in result['notes']
+```
+
+Create `tests/test_integration.py`:
+```python
+import pytest
+from src.metrics.orchestrator import MetricOrchestrator
+
+def test_full_pipeline(temp_csv_file):
+    """Test complete metric calculation pipeline."""
+    orchestrator = MetricOrchestrator()
+    result = orchestrator.process_file(temp_csv_file)
+    
+    assert result['success'] is True
+    assert 'metrics' in result
+    assert 'metadata' in result
+    
+    # Verify all metrics calculated
+    expected_metrics = [
+        'start_power', 'target_power', 'step_direction',
+        'temperature_ranges', 'band_entry', 'setpoint_hit',
+        'stable_plateau', 'sharp_drops', 'spikes',
+        'overshoot_undershoot'
+    ]
+    
+    for metric in expected_metrics:
+        assert metric in result['metrics']
+    
+    # Validate processing time
+    assert result['metadata']['processing_time_seconds'] < 1.0
+```
+
+# Test Strategy:
+Run comprehensive test suite:
+1. Execute `pytest -v` to run all tests
+2. Use `pytest --cov=src` for coverage report
+3. Target >90% code coverage
+4. Run `pytest -k test_metric_name` for specific metric tests
+5. Use `pytest --lf` to rerun failed tests
+6. Create GitHub Actions workflow for CI/CD
+7. Add performance benchmarks with pytest-benchmark
+
+# Subtasks:
+## 1. Create synthetic test data generators with comprehensive scenarios [done]
+### Dependencies: None
+### Description: Build robust test data generators in tests/fixtures/sample_data.py that create realistic time-series data for UP-STEP, DOWN-STEP, and edge case scenarios including power drops, temperature variations, and outages.
+### Details:
+Implement create_upstep_test_data(), create_downstep_with_drops_data(), and additional generators for edge cases like minimal steps, high noise, and missing data segments. Include realistic thermal profiles and PSU temperature data. Add save_test_fixtures() function to persist CSV files for testing.
+
+## 2. Build comprehensive unit test suites for basic metrics [done]
+### Dependencies: 10.1
+### Description: Create exhaustive unit tests for start_power and target_power metrics covering normal operation, edge cases, and error conditions with multiple test scenarios per metric.
+### Details:
+Implement test_basic_metrics.py with TestStartPower and TestTargetPower classes. Cover normal calculations, no pre-action data, all NaN values, high variance data, and boundary conditions. Test both successful calculations and error handling with proper assertions for median values, achieved status, and metadata.
+
+## 3. Create unit tests for step direction and temperature metrics [done]
+### Dependencies: 10.1
+### Description: Develop comprehensive test coverage for step direction classification and temperature range analysis with various power transition scenarios and thermal data patterns.
+### Details:
+Extend test_basic_metrics.py with TestStepDirection and TestTemperatureRanges classes. Test UP-STEP (>2% or >50W increase), DOWN-STEP (>2% or >50W decrease), MINIMAL-STEP cases, and temperature analysis with complete/incomplete thermal data. Include boundary testing for percentage and absolute thresholds.
+
+## 4. Implement unit tests for anomaly detection metrics [done]
+### Dependencies: 10.1
+### Description: Build complete test suites for spike detection, sharp drops, and overshoot/undershoot metrics with various anomaly patterns and noise levels in the data.
+### Details:
+Create test_anomaly_metrics.py with comprehensive coverage of spike detection algorithms, drop identification, and transient response analysis. Test spike filtering, baseline calculations, overshoot detection for UP-STEP, undershoot for DOWN-STEP, and no transient cases for MINIMAL-STEP scenarios.
+
+## 5. Create integration tests for full orchestrator pipeline [done]
+### Dependencies: 10.2, 10.3, 10.4
+### Description: Develop end-to-end integration tests that verify the complete metric calculation pipeline from CSV input to final results output with proper error handling and performance validation.
+### Details:
+Implement test_integration.py with full pipeline testing using MetricOrchestrator. Test complete workflow from file loading through all metric calculations, validate result structure contains all expected metrics, verify processing time requirements, and test error propagation and recovery.
+
+## 6. Set up pytest configuration and performance testing framework [done]
+### Dependencies: 10.1
+### Description: Configure pytest environment with fixtures, create conftest.py for shared test utilities, and implement performance regression tests to ensure metric calculations remain efficient.
+### Details:
+Create conftest.py with sample_upstep_df, sample_downstep_df, and temp_csv_file fixtures. Set up pytest.ini configuration, implement performance benchmarking tests, create GitHub Actions workflow for CI/CD, and establish coverage reporting with target >90% code coverage across all modules.
+

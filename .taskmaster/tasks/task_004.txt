@@ -1,0 +1,126 @@
+# Task ID: 4
+# Title: Implement Basic Metrics: Start Power and Target Power
+# Status: done
+# Dependencies: 3
+# Priority: high
+# Description: Create the first two basic metrics that calculate baseline power consumption and extract target power settings for transition analysis.
+# Details:
+In `src/metrics/basic_metrics.py`:
+```python
+import pandas as pd
+import numpy as np
+from typing import Dict, Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+class BasicMetrics:
+    def __init__(self, df: pd.DataFrame, metadata: Dict[str, Any]):
+        self.df = df
+        self.metadata = metadata
+        self.action_index = metadata.get('action_index', 0)
+    
+    def calculate_start_power(self) -> Dict[str, Any]:
+        """Metric 1: Calculate baseline power consumption before action."""
+        pre_action_data = self.df[self.df['seconds'] < 0]
+        
+        if pre_action_data.empty:
+            logger.warning("No pre-action data available for start power calculation")
+            return {
+                'median': None,
+                'last_value': None,
+                'difference': None,
+                'notes': 'No pre-action data available'
+            }
+        
+        # Filter valid (non-NaN) wattage values
+        valid_wattage = pre_action_data['summary_wattage'].dropna()
+        
+        if valid_wattage.empty:
+            return {
+                'median': None,
+                'last_value': None,
+                'difference': None,
+                'notes': 'All pre-action wattage values are NaN'
+            }
+        
+        # Calculate median
+        median_power = valid_wattage.median()
+        
+        # Get last value before action
+        last_idx = pre_action_data.index[-1]
+        last_value = pre_action_data.loc[last_idx, 'summary_wattage']
+        
+        # Calculate difference if last value is not NaN
+        if pd.notna(last_value):
+            difference = abs(last_value - median_power)
+            notes = 'Normal' if difference <= 50 else f'Significant difference: {difference:.1f}W'
+        else:
+            difference = None
+            notes = 'Last value before action is NaN'
+        
+        return {
+            'median': round(median_power, 2),
+            'last_value': round(last_value, 2) if pd.notna(last_value) else None,
+            'difference': round(difference, 2) if difference is not None else None,
+            'notes': notes,
+            'valid_samples': len(valid_wattage),
+            'total_samples': len(pre_action_data)
+        }
+    
+    def calculate_target_power(self) -> Dict[str, Any]:
+        """Metric 2: Extract target power settings for transition analysis."""
+        # Get mode power immediately before action
+        pre_action_data = self.df[self.df['seconds'] < 0]
+        post_action_data = self.df[self.df['seconds'] >= 0]
+        
+        if pre_action_data.empty:
+            before_power = None
+            logger.warning("No pre-action data for target power")
+        else:
+            before_power = pre_action_data.iloc[-1]['mode_power']
+        
+        if post_action_data.empty:
+            after_power = None
+            logger.warning("No post-action data for target power")
+        else:
+            after_power = post_action_data.iloc[0]['mode_power']
+        
+        # Calculate change
+        if before_power is not None and after_power is not None:
+            change = after_power - before_power
+            
+            # Validate target remains constant post-action
+            post_power_values = post_action_data['mode_power'].dropna()
+            if not post_power_values.empty:
+                is_constant = post_power_values.nunique() == 1
+                if not is_constant:
+                    logger.warning("Target power changes during post-action period")
+                    notes = 'Target power not constant after action'
+                elif abs(change) < 1:
+                    notes = 'Warning: No significant change detected'
+                else:
+                    notes = 'Normal transition'
+            else:
+                notes = 'Cannot validate post-action consistency'
+        else:
+            change = None
+            notes = 'Missing data for calculation'
+        
+        return {
+            'before': round(before_power, 2) if before_power is not None else None,
+            'after': round(after_power, 2) if after_power is not None else None,
+            'change': round(change, 2) if change is not None else None,
+            'notes': notes
+        }
+```
+
+# Test Strategy:
+Create unit tests in `tests/test_metrics/test_basic_metrics.py`:
+1. Test start power with normal data (consistent pre-action values)
+2. Test start power with high variance data
+3. Test start power with all NaN values
+4. Test target power with normal step change
+5. Test target power with no change (minimal step)
+6. Test target power with inconsistent post-action values
+7. Test edge cases: empty dataframes, single row data

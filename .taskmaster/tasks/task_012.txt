@@ -1,0 +1,37 @@
+# Task ID: 12
+# Title: Implement Interactive Power Timeline Visualization
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Create Plotly-based interactive charts showing power consumption over time with key thresholds and action markers using the existing visualization module structure
+# Details:
+Implement src/visualization/plotter.py with create_power_timeline() function that takes raw_data, metrics, and metadata from Phase 1 orchestrator. Generate time-series plot with actual power vs time, add vertical line at action time (t=0), add horizontal band entry zone (faded), add horizontal setpoint zone (faded), configure interactive hover tooltips. Also implement figure_to_html() to convert Plotly figure to self-contained HTML div using plotly.offline.plot() with no CDN dependencies. Follow existing project structure with proper error handling and logging.
+
+# Test Strategy:
+Unit tests for create_power_timeline() with sample data, verify band/setpoint zones render correctly, test figure_to_html() produces valid HTML with no external links, visual inspection tests saving output to tests/output/, parametrized tests with different step directions (UP/DOWN/MINIMAL)
+
+# Subtasks:
+## 1. Implement core time-series plotting function [pending]
+### Dependencies: None
+### Description: Create the core create_power_timeline() function in src/visualization/plotter.py that generates basic time-series plot with power vs time data using Plotly
+### Details:
+Implement create_power_timeline() function that accepts raw_data, metrics, and metadata parameters. Create basic Plotly time-series plot with x-axis as time and y-axis as power consumption. Set up proper axis labels, title, and basic plot configuration. Handle data preprocessing to ensure proper time format and power values. Include error handling for malformed input data and logging for debugging.
+
+## 2. Add interactive features and zone overlays [pending]
+### Dependencies: 12.1
+### Description: Implement vertical action line marker and horizontal zone bands (entry zone, setpoint zone) with interactive hover tooltips
+### Details:
+Add vertical line at action time (t=0) using plotly.graph_objects.Scatter with mode='lines'. Implement horizontal bands for entry zone and setpoint zone using shapes with faded colors and transparency. Configure interactive hover tooltips to show detailed information about power values, timestamps, and zone information. Add proper styling and colors for different plot elements to ensure visual clarity.
+
+## 3. Implement HTML conversion with offline capabilities [pending]
+### Dependencies: 12.2
+### Description: Create figure_to_html() function that converts Plotly figures to self-contained HTML divs without external CDN dependencies
+### Details:
+Implement figure_to_html() function using plotly.offline.plot() with output_type='div' and include_plotlyjs=True to embed all JavaScript libraries. Ensure generated HTML has no external dependencies and can be embedded in larger documents. Configure proper div container with unique IDs to avoid conflicts. Add options for customizing div attributes and handling multiple plots in same document.
+
+## 4. Testing and validation with comprehensive sample data [pending]
+### Dependencies: 12.3
+### Description: Create comprehensive test suite with sample data validation, visual inspection tests, and integration with existing test framework
+### Details:
+Create unit tests for all plotting functions using sample data from existing test fixtures. Implement visual inspection tests that save output to tests/output/ directory for manual verification. Add parametrized tests covering different step directions and edge cases. Integrate with existing pytest framework and ensure >90% code coverage. Test error handling scenarios and validate proper logging output.
+

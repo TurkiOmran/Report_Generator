@@ -1,0 +1,206 @@
+# Task ID: 6
+# Title: Implement Time-Based Metrics: Band Entry and Setpoint Hit
+# Status: done
+# Dependencies: 4
+# Priority: medium
+# Description: Create metrics to measure time to reach target power band (±5%) and exact target power (±30W).
+# Details:
+In `src/metrics/time_metrics.py`:
+```python
+import pandas as pd
+import numpy as np
+from typing import Dict, Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+class TimeMetrics:
+    def __init__(self, df: pd.DataFrame, metadata: Dict[str, Any]):
+        self.df = df
+        self.metadata = metadata
+    
+    def calculate_band_entry(self, target_power_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Metric 5: Measure time to reach target power band (±5%)."""
+        target = target_power_result.get('after')
+        
+        if target is None:
+            return {
+                'time_seconds': None,
+                'achieved': False,
+                'notes': 'No target power available'
+            }
+        
+        # Define band boundaries (±5%)
+        lower_bound = target * 0.95
+        upper_bound = target * 1.05
+        
+        # Get post-action data
+        post_action = self.df[self.df['seconds'] >= 0].copy()
+        
+        if post_action.empty:
+            return {
+                'time_seconds': None,
+                'achieved': False,
+                'notes': 'No post-action data'
+            }
+        
+        # Find first entry into band
+        valid_wattage = post_action.dropna(subset=['summary_wattage'])
+        in_band = (valid_wattage['summary_wattage'] >= lower_bound) & \
+                  (valid_wattage['summary_wattage'] <= upper_bound)
+        
+        if not in_band.any():
+            return {
+                'time_seconds': None,
+                'achieved': False,
+                'notes': f'Never reached band [{lower_bound:.0f}, {upper_bound:.0f}]W',
+                'band_lower': round(lower_bound, 2),
+                'band_upper': round(upper_bound, 2)
+            }
+        
+        # Implement consecutive sample validation (at least 3 consecutive samples)
+        consecutive_count = 0
+        entry_time = None
+        
+        for idx in valid_wattage.index:
+            if in_band.loc[idx]:
+                consecutive_count += 1
+                if consecutive_count >= 3:
+                    # Go back to first of the 3 consecutive samples
+                    entry_idx = valid_wattage.index[valid_wattage.index.get_loc(idx) - 2]
+                    entry_time = valid_wattage.loc[entry_idx, 'seconds']
+                    break
+            else:
+                consecutive_count = 0
+        
+        if entry_time is not None:
+            return {
+                'time_seconds': round(entry_time, 2),
+                'achieved': True,
+                'notes': f'Reached band at {entry_time:.1f}s',
+                'band_lower': round(lower_bound, 2),
+                'band_upper': round(upper_bound, 2)
+            }
+        else:
+            return {
+                'time_seconds': None,
+                'achieved': False,
+                'notes': 'Did not maintain band for 3 consecutive samples',
+                'band_lower': round(lower_bound, 2),
+                'band_upper': round(upper_bound, 2)
+            }
+    
+    def calculate_setpoint_hit(self, target_power_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Metric 6: Measure time to reach exact target power (±30W)."""
+        target = target_power_result.get('after')
+        
+        if target is None:
+            return {
+                'time_seconds': None,
+                'achieved': False,
+                'notes': 'No target power available'
+            }
+        
+        # Define proximity threshold (±30W)
+        threshold = 30
+        lower_bound = target - threshold
+        upper_bound = target + threshold
+        
+        # Get post-action data
+        post_action = self.df[self.df['seconds'] >= 0].copy()
+        
+        if post_action.empty:
+            return {
+                'time_seconds': None,
+                'achieved': False,
+                'notes': 'No post-action data'
+            }
+        
+        # Find first occurrence within threshold
+        valid_wattage = post_action.dropna(subset=['summary_wattage'])
+        within_threshold = (valid_wattage['summary_wattage'] >= lower_bound) & \
+                          (valid_wattage['summary_wattage'] <= upper_bound)
+        
+        if not within_threshold.any():
+            # Find closest approach
+            distances = abs(valid_wattage['summary_wattage'] - target)
+            if not distances.empty:
+                min_distance = distances.min()
+                closest_idx = distances.idxmin()
+                closest_time = valid_wattage.loc[closest_idx, 'seconds']
+                
+                return {
+                    'time_seconds': None,
+                    'achieved': False,
+                    'notes': f'Never reached within ±{threshold}W. Closest: {min_distance:.1f}W at {closest_time:.1f}s',
+                    'closest_distance': round(min_distance, 2),
+                    'closest_time': round(closest_time, 2)
+                }
+            else:
+                return {
+                    'time_seconds': None,
+                    'achieved': False,
+                    'notes': 'No valid wattage data'
+                }
+        
+        # Get first occurrence
+        first_hit_idx = within_threshold.idxmax()
+        hit_time = valid_wattage.loc[first_hit_idx, 'seconds']
+        actual_power = valid_wattage.loc[first_hit_idx, 'summary_wattage']
+        
+        return {
+            'time_seconds': round(hit_time, 2),
+            'achieved': True,
+            'notes': f'Reached {actual_power:.0f}W at {hit_time:.1f}s',
+            'actual_power': round(actual_power, 2),
+            'distance_from_target': round(abs(actual_power - target), 2)
+        }
+```
+
+# Test Strategy:
+Create tests in `tests/test_metrics/test_time_metrics.py`:
+1. Test band entry with quick achievement
+2. Test band entry with delayed achievement
+3. Test band entry never achieved
+4. Test band entry with intermittent values (consecutive sample validation)
+5. Test setpoint hit with exact match
+6. Test setpoint hit within threshold
+7. Test setpoint hit never achieved with closest approach tracking
+
+# Subtasks:
+## 1. Implement adaptive band tolerance calculation with multiple threshold modes [done]
+### Dependencies: None
+### Description: Create a flexible band tolerance system that can use percentage-based (±5%), absolute power-based (±30W), or hybrid thresholds for different scenarios and test types.
+### Details:
+Extend the TimeMetrics class to support multiple band calculation modes: percentage-only, absolute-only, and adaptive hybrid that chooses the most restrictive. Add configuration options for different threshold values based on power levels and test scenarios. Include validation for threshold selection logic.
+
+## 2. Build continuous segment detection for band entry with 15-second dwell time validation [done]
+### Dependencies: 6.1
+### Description: Implement sophisticated temporal analysis to detect when power enters and maintains the target band for a sustained 15-second period, replacing the simple 3-sample validation.
+### Details:
+Replace the current consecutive sample logic with time-based validation that requires power to remain within band for at least 15 seconds continuously. Handle sampling rate variations and implement sliding window analysis to detect sustained band maintenance vs brief touches.
+
+## 3. Implement comprehensive setpoint hit tracking with 25-second sustain logic [done]
+### Dependencies: 6.1
+### Description: Enhance setpoint hit detection to track not just first occurrence but sustained achievement within ±30W tolerance for at least 25 seconds.
+### Details:
+Modify calculate_setpoint_hit to track both initial hit time and sustained achievement time. Implement duration analysis to classify hits as brief touches vs sustained achievements. Add tracking for maximum sustained duration and stability metrics during sustained periods.
+
+## 4. Create event classification system (brief touches vs sustained hits) [done]
+### Dependencies: 6.2, 6.3
+### Description: Build a classification framework to categorize power events as brief touches, oscillating behavior, or sustained achievements for both band entry and setpoint hits.
+### Details:
+Implement event classification logic that analyzes temporal patterns to distinguish between different types of target achievement. Create categories like 'brief_touch', 'oscillating', 'sustained_stable', and 'sustained_variable' with appropriate thresholds and pattern recognition algorithms.
+
+## 5. Build closest approach analysis for failure cases [done]
+### Dependencies: 6.4
+### Description: Implement comprehensive analysis for cases where targets are never achieved, including closest approach timing, duration of closest approach, and trend analysis.
+### Details:
+Enhance failure case reporting with detailed closest approach metrics including minimum distance from target, time of closest approach, duration spent near target, and trend analysis (approaching vs retreating). Add statistical analysis of near-miss patterns and oscillation detection around targets.
+
+## 6. Add comprehensive edge case handling and validation [done]
+### Dependencies: 6.5
+### Description: Implement robust error handling and validation for all edge cases including missing data, invalid targets, extreme values, and inconsistent timestamps.
+### Details:
+Add comprehensive input validation, handle edge cases like missing target data, invalid power readings, timestamp inconsistencies, and extreme outliers. Implement graceful degradation and detailed error reporting. Add data quality checks and warnings for suspicious patterns or data issues.
+
