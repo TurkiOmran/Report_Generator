@@ -102,14 +102,15 @@ def _extract_basic_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Metric 4: Temperature Ranges
     if 'temperature_ranges' in metrics:
         temp_data = metrics['temperature_ranges']
-        hash_board = temp_data.get('hash_board_max', {})
-        psu = temp_data.get('psu_temp_max', {})
+        # Phase 1 returns 'board' and 'psu', not 'hash_board_max' and 'psu_temp_max'
+        board = temp_data.get('board', {})
+        psu = temp_data.get('psu', {})
         
         temp_parts = []
-        if hash_board.get('min') is not None and hash_board.get('max') is not None:
-            temp_parts.append(f"Hash Board: {hash_board['min']:.1f}°C - {hash_board['max']:.1f}°C")
+        if board.get('min') is not None and board.get('max') is not None:
+            temp_parts.append(f"Hash Board: {board['min']:.2f}°C - {board['max']:.2f}°C (Range: {board.get('range', 0):.2f}°C)")
         if psu.get('min') is not None and psu.get('max') is not None:
-            temp_parts.append(f"PSU: {psu['min']:.1f}°C - {psu['max']:.1f}°C")
+            temp_parts.append(f"PSU: {psu['min']:.2f}°C - {psu['max']:.2f}°C (Range: {psu.get('range', 0):.2f}°C)")
         
         if temp_parts:
             rows.append({
