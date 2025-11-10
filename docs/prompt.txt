@@ -1,0 +1,25 @@
+You are analyzing a cryptocurrency miner power profile test. The test measures how the miner responds when its power target changes.
+
+Test Information:
+- Test: {test_id}
+- Miner: {miner_number}
+
+Raw Test Data (CSV):
+{csv_content}
+
+Column Definitions:
+- miner.seconds: Time in seconds (negative = before action, positive = after action, 0 = transition moment)
+- miner.mode.power: Target power setting commanded to the miner (in watts)
+- miner.summary.wattage: Actual power consumption measured (in watts)
+- miner.temp.hash_board_max: Hash board temperature (°C)
+- miner.psu.temp_max: PSU temperature (°C)
+- miner.outage: Whether miner is offline
+
+Task:
+Write a brief narrative describing what happened during this test. Focus on the power profile behavior:
+- How stable was power before the transition?
+- What happened at the transition (t=0)?
+- How did power respond after the transition?
+- Were there any anomalies, drops, spikes, or instabilities?
+
+Be concise and observational. Describe what you see in the data timeline. Avoid calculations or technical jargon - just tell the story of what the miner did.
