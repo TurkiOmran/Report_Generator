@@ -64,15 +64,15 @@ def generate_html_report(
         _generate_metadata_section(metadata),
     ]
     
-    # Add analysis section if available
-    if analysis_text:
-        html_parts.append(_generate_analysis_section(analysis_text))
-    
     # Add metrics section
     html_parts.append(_generate_metrics_section(metrics))
     
     # Add chart section
     html_parts.append(_generate_chart_section(chart_html))
+    
+    # Add analysis section if available (after chart so readers can reference visualization)
+    if analysis_text:
+        html_parts.append(_generate_analysis_section(analysis_text))
     
     # Close document
     html_parts.extend([
@@ -302,6 +302,48 @@ def _get_embedded_css() -> str:
             font-size: 0.9em;
         }
         
+        /* Expandable Details Section */
+        .metric-details {
+            margin-top: 12px;
+        }
+        
+        .metric-details summary {
+            cursor: pointer;
+            color: #3498db;
+            font-weight: 500;
+            padding: 6px 0;
+            user-select: none;
+            transition: color 0.2s;
+        }
+        
+        .metric-details summary:hover {
+            color: #2980b9;
+        }
+        
+        .metric-details summary::marker {
+            color: #3498db;
+        }
+        
+        .metric-details[open] summary {
+            color: #2980b9;
+            margin-bottom: 8px;
+        }
+        
+        .details-content {
+            margin-top: 8px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-left: 3px solid #3498db;
+            font-size: 0.9em;
+            line-height: 1.8;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .details-content strong {
+            color: #2C3E50;
+            font-weight: 600;
+        }
+        
         /* Chart Section */
         .chart-container {
             margin-top: 20px;
@@ -379,8 +421,19 @@ def _get_embedded_css() -> str:
 
 def _generate_header_section(metadata: Dict[str, Any]) -> str:
     """Generate report header with title and timestamp."""
-    # Get test info from metadata
+    # Get test info from metadata or extract from filename
     test_id = metadata.get('test_id', 'Unknown Test')
+    
+    if test_id == 'Unknown Test':
+        # Try to extract from filename
+        try:
+            from src.analysis.claude_client import extract_test_info
+            filename = metadata.get('filename', '')
+            if filename:
+                test_info = extract_test_info(filename)
+                test_id = test_info.get('test_id', test_id)
+        except Exception:
+            pass
     
     # Format current timestamp
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -396,9 +449,27 @@ def _generate_metadata_section(metadata: Dict[str, Any]) -> str:
     """Generate metadata section with file and test information."""
     # Extract metadata fields - Phase 1 returns different keys
     filename = metadata.get('filename', 'Unknown')
+    
+    # Try to extract test info from filename if not already in metadata
     test_id = metadata.get('test_id', 'N/A')
     miner_number = metadata.get('miner_number', 'N/A')
     timestamp = metadata.get('timestamp', 'N/A')
+    
+    if test_id == 'N/A' or miner_number == 'N/A' or timestamp == 'N/A':
+        # Extract from filename: r{test_num}_{miner}_{timestamp}.csv
+        try:
+            from src.analysis.claude_client import extract_test_info
+            test_info = extract_test_info(filename)
+            test_id = test_info.get('test_id', test_id)
+            miner_number = test_info.get('miner_number', miner_number)
+            timestamp = test_info.get('timestamp', timestamp)
+            
+            # Format timestamp for better readability (2025-08-28T09_40_10 -> 2025-08-28 09:40:10)
+            if timestamp != 'N/A':
+                timestamp = timestamp.replace('T', ' ').replace('_', ':')
+        except Exception:
+            # If extraction fails, keep N/A values
+            pass
     
     # Phase 1 uses 'total_rows', not 'total_samples'
     total_samples = metadata.get('total_rows') or metadata.get('total_samples', 0)

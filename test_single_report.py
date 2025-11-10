@@ -17,7 +17,7 @@ def main():
     print("\n1. Initializing pipeline...")
     pipeline = ReportPipeline(
         output_dir='test_reports',
-        enable_analysis=False,  # Set to True if you have ANTHROPIC_API_KEY in .env
+        enable_analysis=False,  # Set to True to enable Claude AI analysis (uses API tokens)
         log_level='INFO'
     )
     print("[OK] Pipeline initialized")

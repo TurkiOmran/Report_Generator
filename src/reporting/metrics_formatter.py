@@ -67,36 +67,78 @@ def _extract_basic_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
     
     # Metric 1: Start Power
     if 'start_power' in metrics:
-        # Phase 1 returns 'median', not 'value'
-        value = metrics['start_power'].get('median') or metrics['start_power'].get('value')
-        if value is not None:
+        start_data = metrics['start_power']
+        median = start_data.get('median') or start_data.get('value')
+        last_value = start_data.get('last_value')
+        difference = start_data.get('difference')
+        
+        if median is not None:
+            # Build expandable details
+            details_parts = [
+                f"<strong>Median:</strong> {median:.1f}W",
+            ]
+            if last_value is not None:
+                details_parts.append(f"<strong>Last Value:</strong> {last_value:.1f}W")
+            if difference is not None:
+                details_parts.append(f"<strong>Difference:</strong> {difference:.1f}W")
+            
+            details_html = "<br>".join(details_parts)
+            
             rows.append({
                 'name': 'Start Power',
-                'value': f"{value:.1f} W",
-                'description': 'Average power in first 10 samples'
+                'value': f"{median:.1f} W",
+                'description': 'Average power in first 10 samples',
+                'details': details_html
             })
     
     # Metric 2: Target Power
     if 'target_power' in metrics:
-        before = metrics['target_power'].get('before')
-        after = metrics['target_power'].get('after')
+        target_data = metrics['target_power']
+        before = target_data.get('before')
+        after = target_data.get('after')
+        change = target_data.get('change')
+        
         if before is not None and after is not None:
+            # Build expandable details
+            details_parts = [
+                f"<strong>Before:</strong> {before:.1f}W",
+                f"<strong>After:</strong> {after:.1f}W",
+            ]
+            if change is not None:
+                details_parts.append(f"<strong>Change:</strong> {change:.1f}W")
+            
+            details_html = "<br>".join(details_parts)
+            
             rows.append({
                 'name': 'Target Power',
                 'value': f"{before:.0f} W → {after:.0f} W",
-                'description': 'Power transition (before → after action)'
+                'description': 'Power transition (before → after action)',
+                'details': details_html
             })
     
     # Metric 3: Step Direction
     if 'step_direction' in metrics:
-        direction = metrics['step_direction'].get('direction')
-        # Phase 1 returns 'delta', not 'magnitude'
-        magnitude = metrics['step_direction'].get('delta') or metrics['step_direction'].get('magnitude')
-        if direction and magnitude is not None:
+        step_data = metrics['step_direction']
+        direction = step_data.get('direction')
+        delta = step_data.get('delta') or step_data.get('magnitude')
+        description_text = step_data.get('description')
+        
+        if direction and delta is not None:
+            # Build expandable details
+            details_parts = [
+                f"<strong>Direction:</strong> {direction}",
+                f"<strong>Delta:</strong> {delta:.1f}W",
+            ]
+            if description_text:
+                details_parts.append(f"<strong>Description:</strong> {description_text}")
+            
+            details_html = "<br>".join(details_parts)
+            
             rows.append({
                 'name': 'Step Direction',
-                'value': f"{direction} ({magnitude:+.0f} W)",
-                'description': 'Direction and magnitude of power change'
+                'value': f"{direction} ({delta:+.0f} W)",
+                'description': 'Direction and magnitude of power change',
+                'details': details_html
             })
     
     # Metric 4: Temperature Ranges
@@ -107,16 +149,22 @@ def _extract_basic_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         psu = temp_data.get('psu', {})
         
         temp_parts = []
+        details_parts = []
+        
         if board.get('min') is not None and board.get('max') is not None:
-            temp_parts.append(f"Hash Board: {board['min']:.2f}°C - {board['max']:.2f}°C (Range: {board.get('range', 0):.2f}°C)")
+            temp_parts.append(f"Hash Board: {board['min']:.2f}°C - {board['max']:.2f}°C")
+            details_parts.append(f"<strong>Hash Board:</strong> Min={board['min']:.2f}°C, Max={board['max']:.2f}°C, Range={board.get('range', 0):.2f}°C")
+        
         if psu.get('min') is not None and psu.get('max') is not None:
-            temp_parts.append(f"PSU: {psu['min']:.2f}°C - {psu['max']:.2f}°C (Range: {psu.get('range', 0):.2f}°C)")
+            temp_parts.append(f"PSU: {psu['min']:.2f}°C - {psu['max']:.2f}°C")
+            details_parts.append(f"<strong>PSU:</strong> Min={psu['min']:.2f}°C, Max={psu['max']:.2f}°C, Range={psu.get('range', 0):.2f}°C")
         
         if temp_parts:
             rows.append({
                 'name': 'Temperature Ranges',
                 'value': '<br>'.join(temp_parts),
-                'description': 'Min-max temperature ranges during test'
+                'description': 'Min-max temperature ranges during test',
+                'details': "<br>".join(details_parts)
             })
     
     return rows
@@ -133,18 +181,41 @@ def _extract_time_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         status = band_data.get('status', '')
         time_val = band_data.get('time')
         wattage = band_data.get('wattage')
+        percentage = band_data.get('percentage')
+        band_limits = band_data.get('band_limits', {})
+        entry_method = band_data.get('entry_method')
         
         if status == 'ENTERED' and time_val is not None:
             value_str = f"✓ Entered at t={time_val:.1f}s"
             if wattage:
                 value_str += f" ({wattage:.0f}W)"
+            
+            # Build expandable details
+            details_parts = [
+                f"<strong>Status:</strong> {status}",
+                f"<strong>Time:</strong> {time_val:.6f}s",
+                f"<strong>Wattage:</strong> {wattage:.1f}W" if wattage else "",
+            ]
+            if percentage is not None:
+                details_parts.append(f"<strong>Percentage:</strong> {percentage:.2f}%")
+            if band_limits:
+                lower = band_limits.get('lower', 0)
+                upper = band_limits.get('upper', 0)
+                tolerance = band_limits.get('tolerance', 0)
+                details_parts.append(f"<strong>Band Limits:</strong> {lower:.1f}W - {upper:.1f}W (±{tolerance:.1f}W)")
+            if entry_method:
+                details_parts.append(f"<strong>Entry Method:</strong> {entry_method}")
+            
+            details_html = "<br>".join([p for p in details_parts if p])
         else:
             value_str = "✗ Never entered band"
+            details_html = f"<strong>Status:</strong> {status or 'NEVER_ENTERED'}"
         
         rows.append({
             'name': 'Band Entry (±5%)',
             'value': value_str,
-            'description': 'Time to enter ±5% band around target power'
+            'description': 'Time to enter ±5% band around target power',
+            'details': details_html
         })
     
     # Metric 6: Setpoint Hit
@@ -155,18 +226,47 @@ def _extract_time_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         never_hit = summary.get('never_sustained', True)
         first_hit_time = summary.get('first_sustained_hit_time')
         total_hits = summary.get('total_sustained_hits', 0)
+        total_touches = summary.get('total_brief_touches', 0)
+        brief_touches = setpoint_data.get('brief_touches', [])
+        sustained_hits = setpoint_data.get('sustained_hits', [])
         
         if not never_hit and first_hit_time is not None:
             value_str = f"✓ Hit at t={first_hit_time:.1f}s"
             if total_hits > 1:
                 value_str += f" ({total_hits} sustained hits)"
+            
+            # Build expandable details
+            details_parts = [
+                f"<strong>Sustained Hits:</strong> {total_hits}",
+                f"<strong>Brief Touches:</strong> {total_touches}",
+            ]
+            
+            # Add brief touch times
+            if brief_touches:
+                touch_times = ", ".join([f"t={t.get('time', 0):.6f}s" for t in brief_touches[:5]])
+                if len(brief_touches) > 5:
+                    touch_times += f", ... and {len(brief_touches) - 5} more"
+                details_parts.append(f"<strong>Brief Touch Times:</strong> {touch_times}")
+            
+            # Add sustained hit details
+            if sustained_hits:
+                for idx, hit in enumerate(sustained_hits[:3], 1):
+                    hit_time = hit.get('start_time')
+                    duration = hit.get('duration')
+                    if hit_time is not None and duration is not None:
+                        # Time values use 6 decimals, durations use 2 decimals (per reference doc)
+                        details_parts.append(f"<strong>Sustained Hit #{idx}:</strong> Time={hit_time:.6f}s, Duration={duration:.2f}s")
+            
+            details_html = "<br>".join(details_parts)
         else:
             value_str = "✗ Never hit setpoint"
+            details_html = "<strong>Sustained Hits:</strong> 0<br><strong>Brief Touches:</strong> 0"
         
         rows.append({
             'name': 'Setpoint Hit (±2%)',
             'value': value_str,
-            'description': 'Time to reach ±2% of target power'
+            'description': 'Time to reach ±2% of target power',
+            'details': details_html
         })
     
     # Metric 7: Stable Plateau
@@ -176,6 +276,8 @@ def _extract_time_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         plateaus = plateau_data.get('plateaus', [])
         summary = plateau_data.get('summary', {})
         plateau_count = summary.get('total_count', 0)
+        longest_duration = summary.get('longest_duration', 0)
+        total_stable_time = summary.get('total_stable_time', 0)
         
         if plateau_count > 0 and plateaus:
             first_plateau = plateaus[0]
@@ -183,14 +285,39 @@ def _extract_time_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
             duration = first_plateau.get('duration')
             value_str = f"✓ Achieved at t={start_time:.1f}s"
             if duration:
-                value_str += f" (duration: {duration:.1f}s)"
+                # Durations use 2 decimals per reference doc
+                value_str += f" (duration: {duration:.2f}s)"
+            
+            # Build expandable details
+            # Durations use 2 decimals per reference doc
+            details_parts = [
+                f"<strong>Total Plateaus:</strong> {plateau_count}",
+                f"<strong>Longest Duration:</strong> {longest_duration:.2f}s",
+                f"<strong>Total Stable Time:</strong> {total_stable_time:.2f}s",
+            ]
+            
+            # Add plateau ranges
+            if plateaus:
+                plateau_ranges = []
+                for p in plateaus[:5]:
+                    start = p.get('start_time')
+                    exit_time = p.get('exit_time')
+                    if start is not None and exit_time is not None:
+                        plateau_ranges.append(f"t={start:.1f}-{exit_time:.1f}s")
+                if len(plateaus) > 5:
+                    plateau_ranges.append(f"... and {len(plateaus) - 5} more")
+                details_parts.append(f"<strong>Plateau Ranges:</strong> {' and '.join(plateau_ranges)}")
+            
+            details_html = "<br>".join(details_parts)
         else:
             value_str = "✗ No stable plateau detected"
+            details_html = "<strong>Total Plateaus:</strong> 0<br><strong>Longest Duration:</strong> 0.0s<br><strong>Total Stable Time:</strong> 0.0s"
         
         rows.append({
             'name': 'Stable Plateau',
             'value': value_str,
-            'description': '30s window with power within ±2% of target'
+            'description': '30s window with power within ±2% of target',
+            'details': details_html
         })
     
     return rows
@@ -206,16 +333,30 @@ def _extract_anomaly_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         # Phase 1 returns 'summary' with 'count' and 'sharp_drops' list
         summary = drops_data.get('summary', {})
         count = summary.get('count', 0)
-        details = drops_data.get('sharp_drops', [])
+        drop_list = drops_data.get('sharp_drops', [])
+        threshold = drops_data.get('threshold', 'N/A')
         
         value_str = f"{count} drop(s) detected"
-        if details:
-            value_str += _format_anomaly_details(details, 'drop')
+        
+        # Build expandable details
+        details_parts = [
+            f"<strong>Count:</strong> {count}",
+            f"<strong>Threshold:</strong> {threshold}%" if isinstance(threshold, (int, float)) else f"<strong>Threshold:</strong> N/A%",
+        ]
+        
+        if drop_list:
+            drop_times = ", ".join([f"t={d.get('time', 0):.6f}s" for d in drop_list[:10]])
+            if len(drop_list) > 10:
+                drop_times += f", ... and {len(drop_list) - 10} more"
+            details_parts.append(f"<strong>Times:</strong> {drop_times}")
+        
+        details_html = "<br>".join(details_parts)
         
         rows.append({
             'name': 'Sharp Drops',
             'value': value_str,
-            'description': 'Power drops >200W in 5s window'
+            'description': 'Power drops >200W in 5s window',
+            'details': details_html
         })
     
     # Metric 9: Sharp Rises  
@@ -224,16 +365,30 @@ def _extract_anomaly_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         # Phase 1 returns 'summary' with 'count' and 'sharp_rises' list
         summary = rises_data.get('summary', {})
         count = summary.get('count', 0)
-        details = rises_data.get('sharp_rises', [])
+        rise_list = rises_data.get('sharp_rises', [])
+        threshold = rises_data.get('threshold', 'N/A')
         
         value_str = f"{count} rise(s) detected"
-        if details:
-            value_str += _format_anomaly_details(details, 'rise')
+        
+        # Build expandable details
+        details_parts = [
+            f"<strong>Count:</strong> {count}",
+            f"<strong>Threshold:</strong> {threshold}%" if isinstance(threshold, (int, float)) else f"<strong>Threshold:</strong> N/A%",
+        ]
+        
+        if rise_list:
+            rise_times = ", ".join([f"t={r.get('time', 0):.6f}s" for r in rise_list[:10]])
+            if len(rise_list) > 10:
+                rise_times += f", ... and {len(rise_list) - 10} more"
+            details_parts.append(f"<strong>Times:</strong> {rise_times}")
+        
+        details_html = "<br>".join(details_parts)
         
         rows.append({
             'name': 'Sharp Rises',
             'value': value_str,
-            'description': 'Power rises >200W in 5s window (excludes normal transitions)'
+            'description': 'Power rises >200W in 5s window (excludes normal transitions)',
+            'details': details_html
         })
     
     # Metric 10: Overshoot/Undershoot
@@ -254,6 +409,9 @@ def _extract_anomaly_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
                 value_str += f" at t={time_val:.1f}s"
             if magnitude is not None:
                 value_str += f" ({magnitude:+.0f}W)"
+            
+            # Build expandable details for overshoot
+            details_html = f"<strong>Overshoot Occurred:</strong> {overshoot_occurred}"
         elif undershoot_occurred:
             value_str = "✓ Undershoot detected"
             time_val = undershoot.get('time')
@@ -262,13 +420,18 @@ def _extract_anomaly_metrics(metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
                 value_str += f" at t={time_val:.1f}s"
             if magnitude is not None:
                 value_str += f" ({magnitude:+.0f}W)"
+            
+            # Build expandable details for undershoot
+            details_html = f"<strong>Undershoot Occurred:</strong> {undershoot_occurred}"
         else:
             value_str = "✗ No overshoot/undershoot"
+            details_html = "<strong>Overshoot Occurred:</strong> False"
         
         rows.append({
             'name': 'Overshoot/Undershoot',
             'value': value_str,
-            'description': 'Power exceeds band by >5% after initial transition'
+            'description': 'Power exceeds band by >5% after initial transition',
+            'details': details_html
         })
     
     return rows
@@ -322,7 +485,23 @@ def _format_category_section(title: str, rows: List[Dict[str, Any]]) -> str:
             '<tr>',
             f'<td class="metric-name">{row["name"]}</td>',
             f'<td class="metric-value">{row["value"]}</td>',
-            f'<td class="metric-description">{row["description"]}</td>',
+            f'<td class="metric-description">',
+            row["description"]
+        ])
+        
+        # Add expandable details if present
+        if 'details' in row and row['details']:
+            html_parts.extend([
+                '<details class="metric-details" style="margin-top: 8px;">',
+                '<summary style="cursor: pointer; color: #3498db; font-weight: 500;">▶ View Details</summary>',
+                f'<div class="details-content" style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-left: 3px solid #3498db; font-size: 0.9em;">',
+                row['details'],
+                '</div>',
+                '</details>'
+            ])
+        
+        html_parts.extend([
+            '</td>',
             '</tr>'
         ])
     

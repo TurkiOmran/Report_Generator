@@ -43,3 +43,5 @@ VALIDATION_REPORT.md
 validation_batch.log
 power_plots/
 power_profile_viewer.html
+
+test_reports/

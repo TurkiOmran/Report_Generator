@@ -66,6 +66,9 @@ class PowerTimelinePlotter:
         # Add main power trace
         self._add_power_trace(fig)
         
+        # Add miner mode (target power) trace
+        self._add_mode_power_trace(fig)
+        
         # Add zone overlays
         self._add_band_entry_zone(fig)
         self._add_setpoint_zone(fig)
@@ -110,6 +113,41 @@ class PowerTimelinePlotter:
             hoverinfo='text',
             showlegend=True
         ))
+    
+    def _add_mode_power_trace(self, fig: go.Figure) -> None:
+        """Add miner mode power (target/commanded power) trace as light red line."""
+        # Check if mode_power column exists
+        if 'mode_power' not in self.df.columns:
+            logger.warning("mode_power column not available, skipping mode power trace")
+            return
+        
+        time_seconds = self.df['seconds'].tolist()
+        mode_power = self.df['mode_power'].tolist()
+        
+        # Create hover text
+        hover_text = []
+        for idx, row in self.df.iterrows():
+            if pd.notna(row['mode_power']):
+                text = (
+                    f"<b>Time:</b> {row['seconds']:.1f}s<br>"
+                    f"<b>Target Power:</b> {row['mode_power']:.1f}W"
+                )
+                hover_text.append(text)
+            else:
+                hover_text.append("")
+        
+        fig.add_trace(go.Scatter(
+            x=time_seconds,
+            y=mode_power,
+            mode='lines',
+            name='Target Power (Mode)',
+            line=dict(color='rgba(255, 99, 71, 0.6)', width=2),
+            hovertext=hover_text,
+            hoverinfo='text',
+            showlegend=True
+        ))
+        
+        logger.debug("Added miner mode power trace")
     
     def _add_band_entry_zone(self, fig: go.Figure) -> None:
         """Add band entry zone overlay (±5% of target power)."""
