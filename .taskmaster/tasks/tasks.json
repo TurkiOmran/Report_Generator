@@ -699,7 +699,7 @@
           12,
           13
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -707,7 +707,7 @@
             "description": "Create metrics_formatter.py module to convert metrics dictionaries into structured HTML tables with proper categorization and formatting",
             "dependencies": [],
             "details": "Implement src/reporting/metrics_formatter.py with format_metrics_table() function that takes metrics dict and converts to HTML table. Group metrics by category (Basic, Time-Based, Anomaly) with proper section headers. Format numeric values with appropriate precision and units. Handle detailed lists (like spike_details) with nested table structures. Include proper HTML table structure with thead/tbody elements and CSS classes for styling.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for format_metrics_table() with all 10 metrics types, verify correct HTML table structure, test numeric formatting precision, validate detailed lists render as nested structures, test with edge cases like missing metrics"
           },
           {
@@ -718,7 +718,7 @@
               1
             ],
             "details": "Implement src/reporting/html_generator.py with generate_html_report() function that creates complete HTML5 document. Include embedded CSS (no external dependencies) with responsive design for mobile/desktop. Fixed section order: Header with report title and timestamp, Metadata section with file info, Analysis section with Claude-generated insights, Metrics section with formatted tables, Chart section with embedded Plotly visualization. Use semantic HTML5 elements and ensure cross-browser compatibility.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for generate_html_report() producing valid HTML5, verify embedded CSS has no external dependencies, test responsive design across viewport sizes, validate section ordering is fixed, test HTML structure with W3C validator, cross-browser compatibility testing"
           },
           {
@@ -729,7 +729,7 @@
               2
             ],
             "details": "Implement src/reporting/file_exporter.py with save_report() function that creates output directories if they don't exist, generates proper filenames in format report_r{run}_{step}_{timestamp}.html, saves HTML content with UTF-8 encoding, handles file permissions and disk space errors. Include methods for batch export and cleanup of old reports. Ensure single-file portability with all assets embedded.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for save_report() with directory creation, test filename format generation with various inputs, verify UTF-8 encoding preservation, test error handling for disk full/permission denied, validate single-file portability by moving exported files"
           }
         ]
@@ -819,7 +819,7 @@
     ],
     "metadata": {
       "created": "2025-11-08T11:52:16.561Z",
-      "updated": "2025-11-10T20:42:52.551Z",
+      "updated": "2025-11-10T20:59:03.042Z",
       "description": "Tasks for master context"
     }
   }
